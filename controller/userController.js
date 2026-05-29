@@ -48,11 +48,11 @@ const UserController = {
     getUser: async (req, res) => {
         logger.info(Message.LOG_START+' - '+Message.AUTH_CONTROLLER+Message.FETCHING_USER_INFO, { userId: req.userId });
         try {
-            if(!req.body.id){
+            if(!req.params.id){
                 logger.error(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.ERROR_IN+Message.FETCHING_USER_INFO, { error: Message.ID_IS_REQUIRED });
                 return res.status(400).send({data: null, message: Message.ID_IS_REQUIRED});
             }
-            const user = await UserService.findUserById(req.body.id);
+            const user = await UserService.findUserById(req.params.id);
             if (!user) {
                 logger.error(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.ERROR_IN+Message.FETCHING_USER_INFO, { userId: req.userId });
                 return res.status(404).send({data: null, message: Message.USER_NOT_FOUND});
@@ -65,19 +65,19 @@ const UserController = {
         }  
     },
     deleteUser: async (req, res) => {
-        logger.info(Message.LOG_START+' - '+Message.AUTH_CONTROLLER+Message.DELETE_USER_ATTEMPT, { userId: req.body.id });
+        logger.info(Message.LOG_START+' - '+Message.AUTH_CONTROLLER+Message.DELETE_USER_ATTEMPT, { userId: req.params.id });
         try {
-            if(!req.body.id){
+            if(!req.params.id){
                 logger.error(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.ERROR_IN+Message.DELETE_USER_ATTEMPT, { error: Message.ID_IS_REQUIRED });
                 return res.status(400).send({data: null, message: Message.ID_IS_REQUIRED});
             }
-            const user = await UserService.findUserById(req.body.id);
+            const user = await UserService.findUserById(req.params.id);
             if (!user) {
-                logger.error(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.ERROR_IN+Message.DELETE_USER_ATTEMPT, { userId: req.body.id });
+                logger.error(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.ERROR_IN+Message.DELETE_USER_ATTEMPT, { userId: req.params.id });
                 return res.status(404).send({data: null, message: Message.USER_NOT_FOUND});
             }
-            await user.remove();
-            logger.info(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.DELETE_USER_ATTEMPT+Message.SUCCESS, { userId: req.body.id });
+            await UserService.deleteUser(user._id);
+            logger.info(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.DELETE_USER_ATTEMPT+Message.SUCCESS, { userId: req.params.id });
             res.send({ data: null, message: Message.USER_DELETED });
         } catch (error) {
             logger.error(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.ERROR_IN+Message.DELETE_USER_ATTEMPT, error);
@@ -85,20 +85,20 @@ const UserController = {
         }
     },
     updateUser: async (req, res) => {
-        logger.info(Message.LOG_START+' - '+Message.AUTH_CONTROLLER+Message.UPDATE_USER_ATTEMPT, { userId: req.body.id });
+        logger.info(Message.LOG_START+' - '+Message.AUTH_CONTROLLER+Message.UPDATE_USER_ATTEMPT, { userId: req.params.id });
         try {
-            if(!req.body.id){
+            if(!req.params.id){
                 logger.error(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.ERROR_IN+Message.UPDATE_USER_ATTEMPT, { error: Message.ID_IS_REQUIRED });
                 return res.status(400).send({data: null, message: Message.ID_IS_REQUIRED});
             }
-            const user = await UserService.findUserById(req.body.id);
+            const user = await UserService.findUserById(req.params.id);
             if (!user) {
-                logger.error(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.ERROR_IN+Message.UPDATE_USER_ATTEMPT, { userId: req.body.id });
+                logger.error(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.ERROR_IN+Message.UPDATE_USER_ATTEMPT, { userId: req.params.id });
                 return res.status(404).send({data: null, message: Message.USER_NOT_FOUND});
             }
             Object.assign(user, req.body);
             await user.save();
-            logger.info(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.UPDATE_USER_ATTEMPT+Message.SUCCESS, { userId: req.body.id });
+            logger.info(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.UPDATE_USER_ATTEMPT+Message.SUCCESS, { userId: req.params.id });
             res.send({ data: user, message: Message.USER_UPDATED });
         } catch (error) {
             logger.error(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.ERROR_IN+Message.UPDATE_USER_ATTEMPT, error);

@@ -61,7 +61,7 @@ const UserService = {
             if (!user) {
                 throw new Error(Message.USER_NOT_FOUND);
             }
-            await user.remove();
+            await User.deleteOne({ _id: id });
             return;
         } catch (error) {
             throw error;

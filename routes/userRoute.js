@@ -8,7 +8,7 @@ const { validatePayload } = require('../middleware/common.middleware');
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
 
-router.post('/user/login', authMiddleware, validatePayload, (req, res, next) => {
+router.post('/user/login', authMiddleware, authMiddleware, validatePayload, (req, res, next) => {
   logger.info(Message.LOG_START+' - '+Message.LOGIN_ATTEMPT);
   userController.login(req, res, next);
 });
