@@ -4,6 +4,7 @@ const Message = {
     SERVER_ERROR: 'Server error ',
     VALIDATION_ERROR: 'Validation error ',
     USER_CREATED: 'User created successfully ',
+    AI_SEARCH_ATTEMPT: 'AI Search Attempt',
     LOGIN_SUCCESS: 'Login successful ',
     USER_FOUND: 'User found successfully ',
     FAILED_TO_AUTHENTICATE: 'Failed to authenticate token ',
@@ -26,6 +27,11 @@ const Message = {
     USER_DELETED: 'User deleted successfully ',
     USER_UPDATED: 'User updated successfully ',
     GET_ALL_USERS_ATTEMPT: 'Get All Users Attempt',
-    ADMIN_ONLY: 'Admin access required '
+    ADMIN_ONLY: 'Admin access required ',
+    AI_CONTROLLER: 'AIController ',
+    USER_CONTROLLER: 'UserController ',
+    QUERY_REQUIRED: 'Query is required ',
+    AI_SEARCH: 'AI search ',
+    DATA_FOUND: 'Data found successfully ',
 };
 module.exports = Message;

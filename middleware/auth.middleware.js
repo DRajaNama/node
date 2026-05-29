@@ -15,7 +15,7 @@ const authMiddleware = (req, res, next) => {
         next();
     } catch (error) {
         console.log('Token verification error:', error);
-        return res.status(401).json({ data:null, message: Message.FAILED_TO_AUTHENTICATE_TOKEN });
+        return res.status(401).json({ data:null, message: Message.FAILED_TO_AUTHENTICATE });
     }
 };
 
