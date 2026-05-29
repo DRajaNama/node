@@ -10,7 +10,8 @@ const AiContoller = {
                 logger.error(Message.LOG_END+' - '+Message.AI_CONTROLLER+Message.ERROR_IN+Message.AI_SEARCH, { userId: req.userId });
                 return res.status(400).send({data: null, message: Message.QUERY_REQUIRED});
             }
-            const ai = await AIService.searchByAI(req);
+            // const ai = await AIService.searchByOpenAI(req); 
+            const ai = await AIService.searchByGoogleGenerativeAI(req);
             if (!ai) {
                 logger.error(Message.LOG_END+' - '+Message.AI_CONTROLLER+Message.ERROR_IN+Message.AI_SEARCH, { userId: req.userId });
                 return res.status(404).send({data: null, message: Message.ERROR_IN+Message.AI_SEARCH});
