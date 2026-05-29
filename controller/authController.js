@@ -50,7 +50,6 @@ const AuthContoller = {
             res.status(500).send({data: null, message: Message.SERVER_ERROR });
         }
     },
-
     getUser: async (req, res) => {
         logger.info(Message.LOG_START+' - '+Message.AUTH_CONTROLLER+Message.FETCHING_USER_INFO, { userId: req.userId });
         try {

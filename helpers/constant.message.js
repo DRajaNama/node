@@ -19,6 +19,13 @@ const Message = {
     EMPTY_FIELD: 'Field cannot be empty ',
     MONGODB_CONNECTION_ERROR: 'MongoDB connection error ',
     MONGODB_CONNECTED: 'MongoDB connected ',
-    EMAIL_ALREADY_EXISTS: 'Email already exists '
+    EMAIL_ALREADY_EXISTS: 'Email already exists ',
+    ID_IS_REQUIRED: 'ID is required ',
+    DELETE_USER_ATTEMPT: 'Delete User Attempt',
+    UPDATE_USER_ATTEMPT: 'Update User Attempt',
+    USER_DELETED: 'User deleted successfully ',
+    USER_UPDATED: 'User updated successfully ',
+    GET_ALL_USERS_ATTEMPT: 'Get All Users Attempt',
+    ADMIN_ONLY: 'Admin access required '
 };
 module.exports = Message;

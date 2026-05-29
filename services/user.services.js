@@ -34,7 +34,39 @@ const UserService = {
         } catch (error) {
             throw error;
         }
-    }
+    },
+    getAllUsers: async (filter,page = 1, limit = 10) => {
+        try {
+            return await User.find(filter).skip((page - 1) * limit).limit(limit);
+        } catch (error) {
+            throw error;
+        }
+    },
+    updateUser: async (id, updateData) => {
+        try {
+            const user = await User.findById(id);
+            if (!user) {
+                throw new Error(Message.USER_NOT_FOUND);
+            }
+            Object.assign(user, updateData);
+            await user.save();
+            return user;
+        } catch (error) {
+            throw error;
+        }
+    },
+    deleteUser: async (id) => {
+        try {
+            const user = await User.findById(id);
+            if (!user) {
+                throw new Error(Message.USER_NOT_FOUND);
+            }
+            await user.remove();
+            return;
+        } catch (error) {
+            throw error;
+        }
+    },
 
 };
 
