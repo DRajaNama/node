@@ -14,7 +14,7 @@ app.get('/health', (req, res) => {
 // prefix /api for all routes
 app.use('/api', authRoute);
 app.use('/api', userRoute);
-// app.use('/api',aiRoute);
+app.use('/api',aiRoute);
 
 app.listen(port, () => {  console.log(`Example app listening at http://localhost:${port}`);
 });
