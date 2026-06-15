@@ -38,6 +38,8 @@ const AuthContoller = {
                 logger.error(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.ERROR_IN+Message.REGISTRATION_ATTEMPT, errors);
                 return res.status(400).send({ errors });
             }
+            // take 10 second delay then after create user
+            await new Promise(resolve => setTimeout(resolve, 10000));
             const user = await UserService.createUser(req.body);
             logger.info(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.REGISTRATION_ATTEMPT+Message.SUCCESS, { userId: user._id });
             res.send({ data: user, message: Message.USER_CREATED });

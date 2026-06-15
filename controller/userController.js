@@ -120,8 +120,9 @@ const UserController = {
             }   
             
             const users = await UserService.getAllUsers(filter, parseInt(req.query.page) || 1, parseInt(req.query.limit) || 10);
+            const totalUsers = await UserService.getAllUsers({ ...filter, countOnly: true });
             logger.info(Message.LOG_END+' - '+Message.USER_CONTROLLER+Message.GET_ALL_USERS_ATTEMPT+Message.SUCCESS);
-            res.send({ data: users, message: Message.SUCCESS });
+            res.send({ data: users, message: Message.SUCCESS, meta: { page: parseInt(req.query.page) || 1, limit: parseInt(req.query.limit) || 10, total: totalUsers } });
         } catch (error) {
             logger.error(Message.LOG_END+' - '+Message.USER_CONTROLLER+Message.GET_ALL_USERS_ATTEMPT+Message.ERROR_IN, error);
             res.status(500).send({data: null, message: Message.SERVER_ERROR});

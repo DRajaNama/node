@@ -1,4 +1,10 @@
 const Message = {
+    // controllers
+    AUTH_CONTROLLER: 'AuthController ',
+    USER_CONTROLLER: 'UserController ',
+    AI_CONTROLLER: 'AIController ',
+    CONTACT_CONTROLLER:'ContactController',
+
     USER_NOT_FOUND: 'User not found ',
     INVALID_CREDENTIALS: 'Invalid credentials ',
     SERVER_ERROR: 'Server error ',
@@ -14,7 +20,6 @@ const Message = {
     LOGIN_ATTEMPT: 'Login attempt ',
     REGISTRATION_ATTEMPT: 'Registration attempt ',
     FETCHING_USER_INFO: 'Fetching user info ',
-    AUTH_CONTROLLER: 'AuthController ',
     ERROR_IN: 'Error In ',
     SUCCESS: 'Success ',
     EMPTY_FIELD: 'Field cannot be empty ',
@@ -28,10 +33,17 @@ const Message = {
     USER_UPDATED: 'User updated successfully ',
     GET_ALL_USERS_ATTEMPT: 'Get All Users Attempt',
     ADMIN_ONLY: 'Admin access required ',
-    AI_CONTROLLER: 'AIController ',
-    USER_CONTROLLER: 'UserController ',
     QUERY_REQUIRED: 'Query is required ',
     AI_SEARCH: 'AI search ',
+
+    // common curd operations
     DATA_FOUND: 'Data found successfully ',
+    DATA_NOT_FOUND:'Data not found',
+    CREATE_ATTEMPT: 'Create attempt ',
+    FETCHING_RECORD: 'Fetching record',
+    DELETE_RECORD_ATTEMPT: 'Delete Record Attempt',
+    UPDATE_RECORD_ATTEMPT:'Update Record Attempt',
+    RECORD_UPDATED:'Record updated successfully',
+    GET_ALL_RECORD_ATTEMPT: 'Get All Records Attempt',
 };
 module.exports = Message;

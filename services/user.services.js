@@ -37,6 +37,11 @@ const UserService = {
     },
     getAllUsers: async (filter,page = 1, limit = 10) => {
         try {
+            const countOnly = filter.countOnly;
+            delete filter.countOnly;
+            if (countOnly) {
+                return await User.countDocuments(filter);
+            }
             return await User.find(filter).skip((page - 1) * limit).limit(limit);
         } catch (error) {
             throw error;

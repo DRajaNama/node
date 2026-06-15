@@ -36,4 +36,6 @@ userSchema.methods.toJSON = function () {
     delete obj.password;
     return obj;
 };
+
+
 module.exports = mongoose.model('User', userSchema);
