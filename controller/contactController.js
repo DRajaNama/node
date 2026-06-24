@@ -101,14 +101,17 @@ const ContactController = {
     getAll: async (req, res) => {
         logger.info(Message.LOG_START+' - '+Message.CONTACT_CONTROLLER+Message.GET_ALL_RECORD_ATTEMPT);
         try {
-            const filter = {};
-            if (req.query.email) {
-                filter.email = req.query.email;
+            let filter = {};
+            if (req.query.search) {
+               filter = {
+                    $or: [
+                        { firstName: { $regex: req.query.search, $options: 'i' } },
+                        { lastName: { $regex: req.query.search, $options: 'i' } },
+                        { email: { $regex: req.query.search, $options: 'i' } },
+                        { mobile: { $regex: req.query.search, $options: 'i' } }
+                    ]
+                }
             }
-            if (req.query.name) {
-                filter.name = { $regex: req.query.name, $options: 'i' };
-            }   
-            
             const data = await ContactService.getAllRecord(filter, parseInt(req.query.page) || 1, parseInt(req.query.limit) || 10);
             const totalUsers = await ContactService.getAllRecord({ ...filter, countOnly: true });
             logger.info(Message.LOG_END+' - '+Message.CONTACT_CONTROLLER+Message.GET_ALL_RECORD_ATTEMPT+Message.SUCCESS);
