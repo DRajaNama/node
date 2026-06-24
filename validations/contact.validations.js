@@ -1,7 +1,10 @@
 const contactCreateValidation = (data) => {
     const errors = {};
-    if (!data.name || data.name.trim() === '') {
-        errors.name = 'Name is required';
+    if (!data.firstName || data.firstName.trim() === '') {
+        errors.firstName = 'First Name is required';
+    }
+    if (!data.lastName || data.lastName.trim() === '') {
+        errors.lastName = 'Last Name is required';
     }
     if (!data.mobile || data.mobile.trim() === '') {
         errors.mobile = 'Mobile number is required';

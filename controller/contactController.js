@@ -3,6 +3,7 @@ const ContactService = require('../services/contact.services')
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
 const JWTService = require('../services/jwt.service');
+const { ObjectId } = require('mongodb');
 
 const ContactController = {
     create: async (req, res) => {
@@ -14,9 +15,20 @@ const ContactController = {
                 return res.status(400).send({ errors });
             }
             req.body.userId = req.userId;
+            const query = [{
+                $match: {
+                email: req.body.email,
+                userId: new ObjectId(req.userId)
+                }
+            }];
+            const isExist = await ContactService.findByQuery(query)
+            if(isExist.length > 0){
+                logger.error(Message.LOG_END+' - '+Message.CONTACT_CONTROLLER+Message.DUPLICATE_RECORD+Message.CREATE_ATTEMPT, {});
+                return res.status(400).send({ data: null, message: Message.DUPLICATE_RECORD });
+            }
             const record = await ContactService.createRecord(req.body);
             logger.info(Message.LOG_END+' - '+Message.CONTACT_CONTROLLER+Message.CREATE_ATTEMPT+Message.SUCCESS, { userId: record._id });
-            res.send({ data: record, message: Message.USER_CREATED });
+            res.send({ data: record, message: Message.RECODE_CREATED });
         } catch (error) {
             if (error.code === 11000) {
                 logger.error(Message.LOG_END+' - '+Message.CONTACT_CONTROLLER+Message.ERROR_IN+Message.CREATE_ATTEMPT, req.body.email);
@@ -52,12 +64,18 @@ const ContactController = {
                 logger.error(Message.LOG_END+' - '+Message.CONTACT_CONTROLLER+Message.ERROR_IN+Message.DELETE_RECORD_ATTEMPT, { error: Message.ID_IS_REQUIRED });
                 return res.status(400).send({data: null, message: Message.ID_IS_REQUIRED});
             }
-            const record = await ContactService.findRecordById(req.params.id);
+            const query = [{
+                $match: {
+                _id: new ObjectId(req.params.id),
+                userId: new ObjectId(req.userId)
+                }
+            }];
+            const record = await ContactService.findByQuery(query);
             if (!record) {
-                logger.error(Message.LOG_END+' - '+Message.CONTACT_CONTROLLER+Message.ERROR_IN+Message.DELETE_RECORD_ATTEMPT, { userId: req.params.id });
+                logger.error(Message.LOG_END+' - '+Message.CONTACT_CONTROLLER+Message.ERROR_IN+Message.DELETE_RECORD_ATTEMPT, { userId: req.params.id, query });
                 return res.status(404).send({data: null, message: Message.DATA_NOT_FOUND});
             }
-            await ContactService.deleteRecord(record._id);
+            await ContactService.deleteRecord(new ObjectId(record[0]._id));
             logger.info(Message.LOG_END+' - '+Message.CONTACT_CONTROLLER+Message.DELETE_RECORD_ATTEMPT+Message.SUCCESS, { userId: req.params.id });
             res.send({ data: null, message: Message.USER_DELETED });
         } catch (error) {
@@ -84,9 +102,6 @@ const ContactController = {
         logger.info(Message.LOG_START+' - '+Message.CONTACT_CONTROLLER+Message.GET_ALL_RECORD_ATTEMPT);
         try {
             const filter = {};
-            if (req.query.role) {
-                filter.role = req.query.role;
-            }
             if (req.query.email) {
                 filter.email = req.query.email;
             }

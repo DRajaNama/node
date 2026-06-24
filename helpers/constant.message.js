@@ -3,7 +3,7 @@ const Message = {
     AUTH_CONTROLLER: 'AuthController ',
     USER_CONTROLLER: 'UserController ',
     AI_CONTROLLER: 'AIController ',
-    CONTACT_CONTROLLER:'ContactController',
+    CONTACT_CONTROLLER:'ContactController ',
 
     USER_NOT_FOUND: 'User not found ',
     INVALID_CREDENTIALS: 'Invalid credentials ',
@@ -38,12 +38,14 @@ const Message = {
 
     // common curd operations
     DATA_FOUND: 'Data found successfully ',
-    DATA_NOT_FOUND:'Data not found',
+    DATA_NOT_FOUND:'Data not found ',
     CREATE_ATTEMPT: 'Create attempt ',
-    FETCHING_RECORD: 'Fetching record',
-    DELETE_RECORD_ATTEMPT: 'Delete Record Attempt',
-    UPDATE_RECORD_ATTEMPT:'Update Record Attempt',
-    RECORD_UPDATED:'Record updated successfully',
-    GET_ALL_RECORD_ATTEMPT: 'Get All Records Attempt',
+    FETCHING_RECORD: 'Fetching record ',
+    DELETE_RECORD_ATTEMPT: 'Delete Record Attempt ',
+    UPDATE_RECORD_ATTEMPT:'Update Record Attempt ',
+    RECORD_UPDATED:'Record updated successfully ',
+    GET_ALL_RECORD_ATTEMPT: 'Get All Records Attempt ',
+    DUPLICATE_RECORD: 'Record Already exist ',
+    RECODE_CREATED: 'Record created successfully'
 };
 module.exports = Message;

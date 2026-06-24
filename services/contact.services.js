@@ -1,4 +1,4 @@
-const Contact = require('../models/contact.model');
+const Contact = require('../models/contacts.model');
 const Message = require('../helpers/constant.message');
 
 const ContactService = {
@@ -25,7 +25,7 @@ const ContactService = {
             if (countOnly) {
                 return await Contact.countDocuments(filter);
             }
-            return await Contact.find(filter).skip((page - 1) * limit).limit(limit);
+            return await Contact.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit);
         } catch (error) {
             throw error;
         }
@@ -55,7 +55,13 @@ const ContactService = {
             throw error;
         }
     },
-
+    findByQuery: async (query)=>{
+        try {
+            return await Contact.aggregate(query);
+        } catch (error) {
+            throw error;
+        }
+    }
 };
 
 module.exports = ContactService;
