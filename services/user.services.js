@@ -11,9 +11,12 @@ const UserService = {
             throw error;
         }
     },
-    findUserByEmail: async (email) => {
+    findUserByEmail: async (email,isPassword = false) => {
         try {
-            return await User.findOne({ email });
+            if(isPassword)
+                return await User.findOne({ email }).select('+password');
+            else
+                return await User.findOne({ email })
         } catch (error) {
             throw error;
         }
@@ -27,7 +30,7 @@ const UserService = {
     },
     verifyPassword: async (user, password) => {
         try {
-            if (!user || typeof user.comparePassword !== 'function') {
+            if (!user || typeof user.comparePassword !== 'function' || !user.password) {
                 throw new Error(Message.INVALID_USER_OBJECT);
             }
             return await user.comparePassword(password);

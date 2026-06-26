@@ -13,7 +13,7 @@ const AuthContoller = {
                 logger.error(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.ERROR_IN+Message.LOGIN_ATTEMPT, errors);
                 return res.status(400).send({ errors });
             }
-            const user = await UserService.findUserByEmail(req.body.email);
+            const user = await UserService.findUserByEmail(req.body.email,true);
             if (!user) {
                 logger.error(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.ERROR_IN+Message.LOGIN_ATTEMPT, req.body.email);
                 return res.status(404).send({data: null, message: Message.USER_NOT_FOUND});
@@ -26,6 +26,7 @@ const AuthContoller = {
             logger.info(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.LOGIN_ATTEMPT+Message.SUCCESS);
             res.send({ data: { token, user }, message: Message.LOGIN_SUCCESS });
         } catch (error) {
+            console.log('error=========================>',error)
             logger.error(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.ERROR_IN+Message.LOGIN_ATTEMPT, error);
             res.status(500).send({data: null, message: Message.SERVER_ERROR});
         }
