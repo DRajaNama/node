@@ -120,7 +120,28 @@ const ContactController = {
             logger.error(Message.LOG_END+' - '+Message.CONTACT_CONTROLLER+Message.GET_ALL_RECORD_ATTEMPT+Message.ERROR_IN, error);
             res.status(500).send({data: null, message: Message.SERVER_ERROR});
         }
-    }
+    },
+    importContact: async (req, res) => {
+        logger.info(Message.LOG_START+' - '+Message.CONTACT_CONTROLLER+Message.UPLOAD_FILE, { userId: req.userId });
+        try {
+            if (!req.file) {
+                logger.error(Message.LOG_END+' - '+Message.CONTACT_CONTROLLER+Message.ERROR_IN+Message.UPLOAD_FILE, {error: Message.UPLOAD_FILE + ' ' + Message.IS_REQUIRED });
+                return res.status(400).send({
+                    data: null,
+                    message: Message.UPLOAD_FILE + ' ' + Message.IS_REQUIRED
+                });
+            }
+            // Parse CSV
+            const contacts = await ContactService.parseCSV(req.file.path);
+            // Save into database
+            const record = await ContactService.importContacts(contacts,req.userId);
+            logger.info(Message.LOG_END+' - '+Message.CONTACT_CONTROLLER+Message.UPLOAD_FILE+Message.SUCCESS, { userId: req.userId });
+            return res.send({ data: record,  message: Message.UPLOADED_CONTACT_SUCCESS });
+        } catch (error) {
+            logger.error( Message.LOG_END+' - '+Message.CONTACT_CONTROLLER+Message.ERROR_IN+Message.UPLOAD_FILE, error );
+            return res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+        }
+    },
 };
 
 module.exports = ContactController;

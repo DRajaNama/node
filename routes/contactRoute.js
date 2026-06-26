@@ -6,6 +6,7 @@ const authMiddleware = require('../middleware/auth.middleware');
 const { validatePayload } = require('../middleware/common.middleware');
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
+const upload = require('../helpers/upload')
 
 router.post('/contact/create', authMiddleware, validatePayload, (req, res, next) => {
   logger.info(Message.LOG_START+' - '+Message.REGISTRATION_ATTEMPT);
@@ -32,5 +33,9 @@ router.get('/contacts', authMiddleware, (req, res, next) => {
   ContactController.getAll(req, res, next);
 });
 
+router.post('/contact/import',authMiddleware,upload.single('file'),(req,res,next)=>{
+  logger.info(Message.LOG_START+' '+Message.UPLOAD_FILE);
+  ContactController.importContact(req,res,next);
+})
 
 module.exports = router;

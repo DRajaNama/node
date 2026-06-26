@@ -46,6 +46,9 @@ const Message = {
     RECORD_UPDATED:'Record updated successfully ',
     GET_ALL_RECORD_ATTEMPT: 'Get All Records Attempt ',
     DUPLICATE_RECORD: 'Record Already exist ',
-    RECODE_CREATED: 'Record created successfully'
+    RECODE_CREATED: 'Record created successfully',
+    UPLOAD_FILE: 'Upload File ',
+    IS_REQUIRED: 'is required ',
+    UPLOADED_CONTACT_SUCCESS: 'Upload Contact successfully'
 };
 module.exports = Message;

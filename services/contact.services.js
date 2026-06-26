@@ -1,5 +1,7 @@
 const Contact = require('../models/contacts.model');
 const Message = require('../helpers/constant.message');
+const fs = require("fs");
+const csv = require("csv-parser");
 
 const ContactService = {
     createRecord: async (userData) => {
@@ -61,7 +63,51 @@ const ContactService = {
         } catch (error) {
             throw error;
         }
-    }
+    },
+    parseCSV: (filePath) => {
+        return new Promise((resolve, reject) => {
+            const contacts = [];
+            fs.createReadStream(filePath)
+                .pipe(csv())
+                .on("data", (row) => {
+                    contacts.push(row);
+                })
+                .on("end", () => {
+                    fs.unlinkSync(filePath); // Delete uploaded file
+                    resolve(contacts);
+                })
+                .on("error", (error) => {
+                    reject(error);
+                });
+        });
+    },
+    importContacts: async (contacts, userId) => {
+        try {
+            // Get emails from CSV
+            const emails = contacts.map(contact => contact.email);
+            // Find existing contacts for this user
+            const existingContacts = await Contact.find({
+                userId: userId,
+                email: { $in: emails }
+            }).select("email");
+
+            const existingEmails = new Set(
+                existingContacts.map(contact => contact.email)
+            );
+
+            // Filter out duplicates
+            const newContacts = contacts.filter(contact => !existingEmails.has(contact.email)).map(contact => ({
+                ...contact,
+                userId: userId
+            }));
+            if (newContacts.length === 0) {
+                return [];
+            }
+            return await Contact.insertMany(newContacts);
+        } catch (error) {
+            throw error;
+        }
+    },
 };
 
 module.exports = ContactService;
