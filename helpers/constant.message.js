@@ -4,6 +4,7 @@ const Message = {
     USER_CONTROLLER: 'UserController ',
     AI_CONTROLLER: 'AIController ',
     CONTACT_CONTROLLER:'ContactController ',
+    LIST_CONTROLLER:'ListController ',
 
     USER_NOT_FOUND: 'User not found ',
     INVALID_CREDENTIALS: 'Invalid credentials ',

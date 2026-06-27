@@ -1,12 +1,12 @@
-const Contact = require('../models/contacts.model');
+const List = require('../models/list.model');
 const Message = require('../helpers/constant.message');
 const fs = require("fs");
 const csv = require("csv-parser");
 
-const ContactService = {
+const ListService = {
     createRecord: async (userData) => {
         try {
-            const record = new Contact(userData);
+            const record = new List(userData);
             await record.save();
             return record;
         } catch (error) {
@@ -15,7 +15,7 @@ const ContactService = {
     },
     findRecordById: async (id) => {
         try {
-            return await Contact.findById(id);
+            return await List.findById(id);
         } catch (error) {
             throw error;
         }
@@ -25,16 +25,16 @@ const ContactService = {
             const countOnly = filter.countOnly;
             delete filter.countOnly;
             if (countOnly) {
-                return await Contact.countDocuments(filter);
+                return await List.countDocuments(filter);
             }
-            return await Contact.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit);
+            return await List.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit);
         } catch (error) {
             throw error;
         }
     },
     updateRecord: async (id, updateData) => {
         try {
-            const record = await Contact.findById(id);
+            const record = await List.findById(id);
             if (!record) {
                 throw new Error(Message.USER_NOT_FOUND);
             }
@@ -47,11 +47,11 @@ const ContactService = {
     },
     deleteRecord: async (id) => {
         try {
-            const record = await Contact.findById(id);
+            const record = await List.findById(id);
             if (!record) {
                 throw new Error(Message.DATA_NOT_FOUND);
             }
-            await Contact.deleteOne({ _id: id });
+            await List.deleteOne({ _id: id });
             return;
         } catch (error) {
             throw error;
@@ -59,7 +59,7 @@ const ContactService = {
     },
     findByQuery: async (query)=>{
         try {
-            return await Contact.aggregate(query);
+            return await List.aggregate(query);
         } catch (error) {
             throw error;
         }
@@ -84,30 +84,30 @@ const ContactService = {
     importContacts: async (contacts, userId) => {
         try {
             // Get emails from CSV
-            const emails = contacts.map(contact => contact.email);
+            const emails = contacts.map(List => List.email);
             // Find existing contacts for this user
-            const existingContacts = await Contact.find({
+            const existingContacts = await List.find({
                 userId: userId,
                 email: { $in: emails }
             }).select("email");
 
             const existingEmails = new Set(
-                existingContacts.map(contact => contact.email)
+                existingContacts.map(List => List.email)
             );
 
             // Filter out duplicates
-            const newContacts = contacts.filter(contact => !existingEmails.has(contact.email)).map(contact => ({
-                ...contact,
+            const newContacts = contacts.filter(List => !existingEmails.has(List.email)).map(List => ({
+                ...List,
                 userId: userId
             }));
             if (newContacts.length === 0) {
                 return [];
             }
-            return await Contact.insertMany(newContacts);
+            return await List.insertMany(newContacts);
         } catch (error) {
             throw error;
         }
     },
 };
 
-module.exports = ContactService;
+module.exports = ListService;

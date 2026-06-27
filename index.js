@@ -5,6 +5,7 @@ const authRoute = require('./routes/authRoute');
 const userRoute = require('./routes/userRoute');
 const aiRoute = require('./routes/aiRoute');
 const contactRoute = require('./routes/contactRoute')
+const listRoute = require('./routes/listRoute')
 const connectDB = require('./config/db');
 const cors = require('cors');
 connectDB();
@@ -26,6 +27,7 @@ app.use('/api', authRoute);
 app.use('/api', userRoute);
 app.use('/api',aiRoute);
 app.use('/api',contactRoute)
+app.use('/api',listRoute)
 
 app.listen(port, () => {  console.log(`Example app listening at http://localhost:${port}`);
 });

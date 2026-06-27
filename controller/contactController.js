@@ -2,7 +2,6 @@ const { contactCreateValidation } = require('../validations/contact.validations'
 const ContactService = require('../services/contact.services')
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
-const JWTService = require('../services/jwt.service');
 const { ObjectId } = require('mongodb');
 
 const ContactController = {
