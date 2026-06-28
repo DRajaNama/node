@@ -173,6 +173,66 @@ const ListController = {
             return res.status(500).send({ data: null, message: Message.SERVER_ERROR });
         }
     },
+    removeContacts: async (req, res) => {
+        logger.info(Message.LOG_START+' - '+Message.LIST_CONTROLLER+Message.REMOVE_LIST_CONTACTS,req.body);
+        try {
+            const { errors, isValid } = listAddContactsValidation(req.body);
+            if (!isValid) {
+                logger.error(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.ERROR_IN+Message.REMOVE_LIST_CONTACTS, errors);
+                return res.status(400).send({ errors });
+            }
+            const query = [{
+                $match: {
+                _id: new ObjectId(req.body.id),
+                userId: new ObjectId(req.userId)
+                }
+            }];
+            const list = await ListService.findByQuery(query)
+            if(list.length == 0){
+                logger.error(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.DATA_NOT_FOUND+Message.REMOVE_LIST_CONTACTS, {});
+                return res.status(400).send({ data: null, message: Message.DATA_NOT_FOUND });
+            }
+            let counts = list[0].contactCount || 0;
+            const record = await ListService.removeContacts(req.userId,req.body.id,req.body.contactsId,counts);
+            logger.info(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.REMOVE_LIST_CONTACTS+Message.SUCCESS, { userId: record._id });
+            res.send({ data: record, message: Message.RECODE_CREATED });
+        } catch (error) {
+            if (error.code === 11000) {
+                logger.error(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.ERROR_IN+Message.REMOVE_LIST_CONTACTS, req.body.email);
+                return res.status(400).send({data: null, message: Message.EMAIL_ALREADY_EXISTS });
+            }
+            logger.error(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.ERROR_IN+Message.REMOVE_LIST_CONTACTS, error);
+            res.status(500).send({data: null, message: Message.SERVER_ERROR });
+        }
+    },
+    listContects: async (req, res) => {
+        logger.info(Message.LOG_START+' - '+Message.LIST_CONTROLLER+Message.GET_ALL_RECORD_ATTEMPT);
+        try {
+            if(!req.params.id){
+                logger.error(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.ERROR_IN+Message.GET_ALL_RECORD_ATTEMPT, { error: Message.ID_IS_REQUIRED });
+                return res.status(400).send({data: null, message: Message.ID_IS_REQUIRED});
+            }
+            let filter = {};
+            let id = req.params.id;
+            if (req.query.search) {
+               filter = {
+                    $or: [
+                        { firstName: { $regex: req.query.search, $options: 'i' } },
+                        { lastName: { $regex: req.query.search, $options: 'i' } },
+                        { email: { $regex: req.query.search, $options: 'i' } },
+                        { mobile: { $regex: req.query.search, $options: 'i' } }
+                    ]
+                }
+            }
+            const data = await ListService.getAllListContect(filter, parseInt(req.query.page) || 1, parseInt(req.query.limit) || 10);
+            const totalUsers = await ListService.getAllListContect({ ...filter, countOnly: true });
+            logger.info(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.GET_ALL_RECORD_ATTEMPT+Message.SUCCESS);
+            res.send({ data: data, message: Message.SUCCESS, meta: { page: parseInt(req.query.page) || 1, limit: parseInt(req.query.limit) || 10, total: totalUsers } });
+        } catch (error) {
+            logger.error(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.GET_ALL_RECORD_ATTEMPT+Message.ERROR_IN, error);
+            res.status(500).send({data: null, message: Message.SERVER_ERROR});
+        }
+    },
 };
 
 module.exports = ListController;

@@ -51,6 +51,7 @@ const Message = {
     UPLOAD_FILE: 'Upload File ',
     IS_REQUIRED: 'is required ',
     UPLOADED_CONTACT_SUCCESS: 'Upload Contact successfully',
-    ADD_LIST_CONTACTS:'Add List Contacts '
+    ADD_LIST_CONTACTS:'Add List Contacts ',
+    REMOVE_LIST_CONTACTS:'Remove List Contacts '
 };
 module.exports = Message;

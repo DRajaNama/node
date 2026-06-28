@@ -37,4 +37,14 @@ router.post('/list/add-contacts', authMiddleware, validatePayload, (req, res, ne
   ListController.addContacts(req, res, next);
 });
 
+router.post('/list/remove-contacts', authMiddleware, validatePayload, (req, res, next) => {
+  logger.info(Message.LOG_START+' - '+Message.REGISTRATION_ATTEMPT);
+  ListController.removeContacts(req, res, next);
+});
+
+router.get('/list/:id/contacts', authMiddleware, (req, res, next) => {
+  logger.info(Message.LOG_START+' - '+Message.REGISTRATION_ATTEMPT);
+  ListController.listContects(req, res, next);
+});
+
 module.exports = router;

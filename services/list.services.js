@@ -1,5 +1,6 @@
 const List = require('../models/list.model');
 const ListContact = require('../models/listContact.model');
+const Contact = require('../models/contacts.model');
 const Message = require('../helpers/constant.message');
 const fs = require("fs");
 const csv = require("csv-parser");
@@ -115,6 +116,21 @@ const ListService = {
             throw error;
         }
     },
+    removeContacts: async (userId, listId, contacts,prevCount=0) => {
+        try {
+            let filter = {
+                userId,
+                listId,
+                contactId: {
+                    $in: contacts
+                }
+            }
+            return Promise.all([await ListContact.deleteMany(filter),await ListService.updateContactCount(listId,0,prevCount-contacts.length)]);
+            return true;
+        } catch (error) {
+            throw error;
+        }
+    },
     updateContactCount: async (listId, contactCount,prevCount=0) => {
         try {
             const record = await List.findById(listId);
@@ -130,7 +146,23 @@ const ListService = {
         } catch (error) {
             throw error;
         }
-    }
+    },
+    getAllListContect: async (filter,page = 1, limit = 10) => {
+        try {
+            const countOnly = filter.countOnly;
+            delete filter.countOnly;
+            if (countOnly) {
+                return await ListContact.countDocuments(filter);
+            }
+            return await ListContact.find(filter)
+                .populate('contactId')
+                .sort({ createdAt: -1 })
+                .skip((page - 1) * limit)
+                .limit(limit);
+        } catch (error) {
+            throw error;
+        }
+    },
 };
 
 module.exports = ListService;
