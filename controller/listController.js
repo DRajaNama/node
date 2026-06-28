@@ -1,4 +1,4 @@
-const { listCreateValidation } = require('../validations/list.validations');
+const { listCreateValidation, listAddContactsValidation } = require('../validations/list.validations');
 const ListService = require('../services/list.services')
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
@@ -118,6 +118,38 @@ const ListController = {
         } catch (error) {
             logger.error(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.GET_ALL_RECORD_ATTEMPT+Message.ERROR_IN, error);
             res.status(500).send({data: null, message: Message.SERVER_ERROR});
+        }
+    },
+    addContacts: async (req, res) => {
+        logger.info(Message.LOG_START+' - '+Message.LIST_CONTROLLER+Message.ADD_LIST_CONTACTS,req.body);
+        try {
+            const { errors, isValid } = listAddContactsValidation(req.body);
+            if (!isValid) {
+                logger.error(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.ERROR_IN+Message.ADD_LIST_CONTACTS, errors);
+                return res.status(400).send({ errors });
+            }
+            const query = [{
+                $match: {
+                _id: new ObjectId(req.body.id),
+                userId: new ObjectId(req.userId)
+                }
+            }];
+            const list = await ListService.findByQuery(query)
+            if(list.length == 0){
+                logger.error(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.DATA_NOT_FOUND+Message.ADD_LIST_CONTACTS, {});
+                return res.status(400).send({ data: null, message: Message.DATA_NOT_FOUND });
+            }
+            let counts = list[0].contactCount || 0;
+            const record = await ListService.addContacts(req.userId,req.body.id,req.body.contactsId,counts);
+            logger.info(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.ADD_LIST_CONTACTS+Message.SUCCESS, { userId: record._id });
+            res.send({ data: record, message: Message.RECODE_CREATED });
+        } catch (error) {
+            if (error.code === 11000) {
+                logger.error(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.ERROR_IN+Message.ADD_LIST_CONTACTS, req.body.email);
+                return res.status(400).send({data: null, message: Message.EMAIL_ALREADY_EXISTS });
+            }
+            logger.error(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.ERROR_IN+Message.ADD_LIST_CONTACTS, error);
+            res.status(500).send({data: null, message: Message.SERVER_ERROR });
         }
     },
     importContact: async (req, res) => {

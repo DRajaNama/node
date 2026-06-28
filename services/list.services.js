@@ -1,4 +1,5 @@
 const List = require('../models/list.model');
+const ListContact = require('../models/listContact.model');
 const Message = require('../helpers/constant.message');
 const fs = require("fs");
 const csv = require("csv-parser");
@@ -81,33 +82,55 @@ const ListService = {
                 });
         });
     },
-    importContacts: async (contacts, userId) => {
+    addContacts: async (userId, listId, contacts,prevCount=0) => {
         try {
-            // Get emails from CSV
-            const emails = contacts.map(List => List.email);
-            // Find existing contacts for this user
-            const existingContacts = await List.find({
-                userId: userId,
-                email: { $in: emails }
-            }).select("email");
 
-            const existingEmails = new Set(
-                existingContacts.map(List => List.email)
+            const contactIds = contacts.map(c => c.contactId);
+
+            const existingContacts = await ListContact.find({
+                userId,
+                listId,
+                contactId: { $in: contactIds }
+            }).select("contactId");
+
+            const existingContactIds = new Set(
+                existingContacts.map(c => c.contactId.toString())
             );
 
-            // Filter out duplicates
-            const newContacts = contacts.filter(List => !existingEmails.has(List.email)).map(List => ({
-                ...List,
-                userId: userId
-            }));
+            const newContacts = contacts
+                .filter(c => !existingContactIds.has(c))
+                .map(c => ({
+                    userId,
+                    listId,
+                    contactId: c
+                }));
+
             if (newContacts.length === 0) {
                 return [];
             }
-            return await List.insertMany(newContacts);
+            
+            return Promise.all([await ListContact.insertMany(newContacts),await ListService.updateContactCount(listId,newContacts.length,prevCount)]);
+
         } catch (error) {
             throw error;
         }
     },
+    updateContactCount: async (listId, contactCount,prevCount=0) => {
+        try {
+            const record = await List.findById(listId);
+            if (!record) {
+                throw new Error(Message.DATA_NOT_FOUND);
+            }
+            const updatedRecord = await List.findByIdAndUpdate(
+                listId,
+                { contactCount: prevCount+contactCount },
+                { new: true }
+            );
+            return updatedRecord;
+        } catch (error) {
+            throw error;
+        }
+    }
 };
 
 module.exports = ListService;

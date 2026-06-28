@@ -50,6 +50,7 @@ const Message = {
     RECODE_CREATED: 'Record created successfully',
     UPLOAD_FILE: 'Upload File ',
     IS_REQUIRED: 'is required ',
-    UPLOADED_CONTACT_SUCCESS: 'Upload Contact successfully'
+    UPLOADED_CONTACT_SUCCESS: 'Upload Contact successfully',
+    ADD_LIST_CONTACTS:'Add List Contacts '
 };
 module.exports = Message;

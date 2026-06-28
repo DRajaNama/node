@@ -32,5 +32,9 @@ router.get('/lists', authMiddleware, (req, res, next) => {
   ListController.getAll(req, res, next);
 });
 
+router.post('/list/add-contacts', authMiddleware, validatePayload, (req, res, next) => {
+  logger.info(Message.LOG_START+' - '+Message.REGISTRATION_ATTEMPT);
+  ListController.addContacts(req, res, next);
+});
 
 module.exports = router;

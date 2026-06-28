@@ -17,7 +17,20 @@ const listCreateValidation = (data) => {
         isValid: Object.keys(errors).length === 0
     };
 };
-
+const listAddContactsValidation = (data) => {
+    const errors = {};
+    if (!data.id || data.id.trim() === '') {
+        errors.id = 'List Id is required';
+    }
+    if (!data.contactsId || data.contactsId.length === 0) {
+        errors.contactsId = 'Select Minimum 1 contact';
+    }
+    return {
+        errors,
+        isValid: Object.keys(errors).length === 0
+    };
+};
 module.exports = {
-    listCreateValidation
+    listCreateValidation,
+    listAddContactsValidation
 };
