@@ -183,8 +183,8 @@ const ListController = {
             }
             const query = [{
                 $match: {
-                _id: new ObjectId(req.body.id),
-                userId: new ObjectId(req.userId)
+                    _id: new ObjectId(req.body.id),
+                    userId: new ObjectId(req.userId)
                 }
             }];
             const list = await ListService.findByQuery(query)

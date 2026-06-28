@@ -4,6 +4,7 @@ const Contact = require('../models/contacts.model');
 const Message = require('../helpers/constant.message');
 const fs = require("fs");
 const csv = require("csv-parser");
+const { ObjectId } = require('mongodb');
 
 const ListService = {
     createRecord: async (userData) => {
@@ -119,14 +120,14 @@ const ListService = {
     removeContacts: async (userId, listId, contacts,prevCount=0) => {
         try {
             let filter = {
-                userId,
-                listId,
-                contactId: {
-                    $in: contacts
+                userId: new ObjectId(userId),
+                listId: new ObjectId(listId),
+                _id: {
+                    $in: contacts.map(c => new ObjectId(c))
                 }
             }
-            return Promise.all([await ListContact.deleteMany(filter),await ListService.updateContactCount(listId,0,prevCount-contacts.length)]);
-            return true;
+            let result = Promise.all([await ListContact.deleteMany(filter),await ListService.updateContactCount(listId,0,prevCount-contacts.length)]);
+            return result;
         } catch (error) {
             throw error;
         }
