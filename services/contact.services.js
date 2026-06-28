@@ -1,4 +1,7 @@
 const Contact = require('../models/contacts.model');
+const ListContact =  require('../models/listContact.model')
+const ListService = require('../services/list.services')
+const List = require('../models/list.model')
 const Message = require('../helpers/constant.message');
 const fs = require("fs");
 const csv = require("csv-parser");
@@ -81,7 +84,7 @@ const ContactService = {
                 });
         });
     },
-    importContacts: async (contacts, userId) => {
+    importContacts: async (contacts, userId, list = null) => {
         try {
             // Get emails from CSV
             const emails = contacts.map(contact => contact.email);
@@ -89,7 +92,7 @@ const ContactService = {
             const existingContacts = await Contact.find({
                 userId: userId,
                 email: { $in: emails }
-            }).select("email");
+            }).select({ _id: 1, email: 1 });
 
             const existingEmails = new Set(
                 existingContacts.map(contact => contact.email)
@@ -100,14 +103,72 @@ const ContactService = {
                 ...contact,
                 userId: userId
             }));
-            if (newContacts.length === 0) {
+            if (newContacts.length === 0 && (list != null && existingContacts.length == 0)) {
                 return [];
             }
-            return await Contact.insertMany(newContacts);
+            const insertedContacts = [];
+            if(newContacts.length > 0){
+                insertedContacts = await Contact.insertMany(newContacts);
+            }
+            if(list){
+                let contacts = insertedContacts.map((contact)=>{
+                    return contact._id;
+                })
+                let existIds = existingContacts.map((c)=>{ return c._id})
+                let allContacts = [...contacts,...existIds]
+                await ContactService.addContacts(userId,list._id,allContacts,list.contactCount)
+            }
+            // return insertedContacts
+            return true;
         } catch (error) {
             throw error;
         }
     },
+    addContacts: async (userId, listId, contacts,prevCount=0) => {
+        try {
+            const existingContacts = await ListContact.find({
+                userId,
+                listId,
+                contactId: { $in: contacts }
+            }).select("contactId");
+
+            const existingContactIds = new Set(
+                existingContacts.map(c => c.contactId.toString())
+            );
+
+            const newContacts = contacts
+                .filter(c => !existingContactIds.has(c))
+                .map(c => ({
+                    userId,
+                    listId,
+                    contactId: c
+                }));
+            if (newContacts.length === 0) {
+                return [];
+            }
+            
+            return Promise.all([await ListContact.insertMany(newContacts),await ListService.updateContactCount(listId,newContacts.length,prevCount)]);
+
+        } catch (error) {
+            throw error;
+        }
+    },
+    updateContactCount: async (listId, contactCount,prevCount=0) => {
+        try {
+            const record = await List.findById(listId);
+            if (!record) {
+                throw new Error(Message.DATA_NOT_FOUND);
+            }
+            const updatedRecord = await List.findByIdAndUpdate(
+                listId,
+                { contactCount: prevCount+contactCount },
+                { new: true }
+            );
+            return updatedRecord;
+        } catch (error) {
+            throw error;
+        }
+    }
 };
 
 module.exports = ContactService;

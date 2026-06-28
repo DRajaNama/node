@@ -1,5 +1,6 @@
 const { contactCreateValidation } = require('../validations/contact.validations');
 const ContactService = require('../services/contact.services')
+const ListService = require('../services/list.services')
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
 const { ObjectId } = require('mongodb');
@@ -130,10 +131,24 @@ const ContactController = {
                     message: Message.UPLOAD_FILE + ' ' + Message.IS_REQUIRED
                 });
             }
+            let list = null;
+            if(req.body.id != null){
+                const query = [{
+                    $match: {
+                    _id: new ObjectId(req.body.id),
+                    userId: new ObjectId(req.userId)
+                    }
+                }];
+                list = await ListService.findByQuery(query)
+                if(list.length == 0){
+                    logger.error(Message.LOG_END+' - '+Message.CONTACT_CONTROLLER+Message.DATA_NOT_FOUND+Message.ADD_LIST_CONTACTS, {});
+                    return res.status(400).send({ data: null, message: Message.DATA_NOT_FOUND });
+                }
+            }
             // Parse CSV
             const contacts = await ContactService.parseCSV(req.file.path);
             // Save into database
-            const record = await ContactService.importContacts(contacts,req.userId);
+            const record = await ContactService.importContacts(contacts,req.userId,list?list[0]:null);
             logger.info(Message.LOG_END+' - '+Message.CONTACT_CONTROLLER+Message.UPLOAD_FILE+Message.SUCCESS, { userId: req.userId });
             return res.send({ data: record,  message: Message.UPLOADED_CONTACT_SUCCESS });
         } catch (error) {
