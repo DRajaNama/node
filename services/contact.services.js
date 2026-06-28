@@ -106,20 +106,20 @@ const ContactService = {
             if (newContacts.length === 0 && (list != null && existingContacts.length == 0)) {
                 return [];
             }
-            const insertedContacts = [];
+            let insertedContacts = [];
             if(newContacts.length > 0){
                 insertedContacts = await Contact.insertMany(newContacts);
             }
-            if(list){
+            if(list && (insertedContacts.length > 0 || existingContacts.length > 0)){
                 let contacts = insertedContacts.map((contact)=>{
                     return contact._id;
                 })
                 let existIds = existingContacts.map((c)=>{ return c._id})
                 let allContacts = [...contacts,...existIds]
-                await ContactService.addContacts(userId,list._id,allContacts,list.contactCount)
+                let insertedIds = await ContactService.addContacts(userId,list._id,allContacts,list.contactCount)
+                return insertedIds
             }
-            // return insertedContacts
-            return true;
+            return insertedContacts
         } catch (error) {
             throw error;
         }
