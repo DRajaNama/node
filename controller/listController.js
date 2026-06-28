@@ -104,10 +104,9 @@ const ListController = {
             if (req.query.search) {
                filter = {
                     $or: [
-                        { firstName: { $regex: req.query.search, $options: 'i' } },
-                        { lastName: { $regex: req.query.search, $options: 'i' } },
-                        { email: { $regex: req.query.search, $options: 'i' } },
-                        { mobile: { $regex: req.query.search, $options: 'i' } }
+                        { name: { $regex: req.query.search, $options: 'i' } },
+                        { description: { $regex: req.query.search, $options: 'i' } },
+                        { type: { $regex: req.query.search, $options: 'i' } },
                     ]
                 }
             }
