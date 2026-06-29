@@ -215,12 +215,17 @@ const ListController = {
             let id = req.params.id;
             if (req.query.search) {
                filter = {
+                    listId: new ObjectId(id),
                     $or: [
                         { firstName: { $regex: req.query.search, $options: 'i' } },
                         { lastName: { $regex: req.query.search, $options: 'i' } },
                         { email: { $regex: req.query.search, $options: 'i' } },
                         { mobile: { $regex: req.query.search, $options: 'i' } }
                     ]
+                }
+            }else{
+                filter = {
+                    listId: new ObjectId(id),
                 }
             }
             const data = await ListService.getAllListContect(filter, parseInt(req.query.page) || 1, parseInt(req.query.limit) || 10);
