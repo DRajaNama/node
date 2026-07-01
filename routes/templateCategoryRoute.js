@@ -8,7 +8,7 @@ const { validatePayload } = require('../middleware/common.middleware');
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
 
-router.post('/template-category/create', authMiddleware, adminMiddleware, validatePayload, (req, res, next) => {
+router.post('/template-category/create', authMiddleware, validatePayload, (req, res, next) => {
   logger.info(Message.LOG_START + ' - ' + Message.TEMPLATE_CATEGORY_CREATE_ATTEMPT);
   templateCategoryController.createCategory(req, res, next);
 });
@@ -18,12 +18,12 @@ router.get('/template-category/:id', authMiddleware, (req, res, next) => {
   templateCategoryController.getCategory(req, res, next);
 });
 
-router.put('/template-category/update/:id', authMiddleware, adminMiddleware, validatePayload, (req, res, next) => {
+router.put('/template-category/update/:id', authMiddleware, validatePayload, (req, res, next) => {
   logger.info(Message.LOG_START + ' - ' + Message.TEMPLATE_CATEGORY_UPDATE_ATTEMPT);
   templateCategoryController.updateCategory(req, res, next);
 });
 
-router.delete('/template-category/delete/:id', authMiddleware, adminMiddleware, (req, res, next) => {
+router.delete('/template-category/delete/:id', authMiddleware, (req, res, next) => {
   logger.info(Message.LOG_START + ' - ' + Message.TEMPLATE_CATEGORY_DELETE_ATTEMPT);
   templateCategoryController.deleteCategory(req, res, next);
 });

@@ -9,6 +9,7 @@ const Message = {
     CONTACT_CONTROLLER: 'ContactController',
     LIST_CONTROLLER: 'ListController',
     TEMPLATE_CATEGORY_CONTROLLER: 'TemplateCategoryController',
+    TEMPLATE_CONTROLLER: 'TemplateController',
 
     // =========================
     // LOGGING
@@ -91,6 +92,21 @@ const Message = {
     TEMPLATE_CATEGORY_UPDATE_ATTEMPT: 'Template Category Update Attempt',
     TEMPLATE_CATEGORY_DELETE_ATTEMPT: 'Template Category Delete Attempt',
     TEMPLATE_CATEGORY_FETCH_ATTEMPT: 'Template Category Fetch Attempt',
+
+
+    // =========================
+    // TEMPLATE
+    // =========================
+    TEMPLATE_CREATED: 'Template created successfully',
+    TEMPLATE_UPDATED: 'Template updated successfully',
+    TEMPLATE_DELETED: 'Template deleted successfully',
+    TEMPLATE_FOUND: 'Template fetched successfully',
+    TEMPLATE_NOT_FOUND: 'Template not found',
+    GET_ALL_TEMPLATE_ATTEMPT: 'Get All Templates Attempt',
+    TEMPLATE_CREATE_ATTEMPT: 'Template Create Attempt',
+    TEMPLATE_UPDATE_ATTEMPT: 'Template Update Attempt',
+    TEMPLATE_DELETE_ATTEMPT: 'Template Delete Attempt',
+    TEMPLATE_FETCH_ATTEMPT: 'Template Fetch Attempt',
 
 };
 

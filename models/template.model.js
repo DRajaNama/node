@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+const mongoose = require('mongoose')
 
 const userTemplateSchema = new mongoose.Schema(
   {
@@ -7,12 +7,12 @@ const userTemplateSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    category_id: {
+    categoryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "TemplateCategory",
       required: true,
     },
-    default_template_id: {
+    defaultTemplateId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "DefaultTemplate",
       default: null,
@@ -39,7 +39,7 @@ const userTemplateSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export const UserTemplate = mongoose.model(
+module.exports = mongoose.model(
   "Template",
   userTemplateSchema
 );

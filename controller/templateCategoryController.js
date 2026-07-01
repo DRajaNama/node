@@ -1,4 +1,4 @@
-const TemplateCategoryService = require('../services/templateCategory.service');
+const TemplateCategoryService = require('../services/templateCategory.services');
 const {
     templateCategoryCreateValidation,
     templateCategoryUpdateValidation

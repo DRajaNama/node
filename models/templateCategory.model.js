@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+const mongoose = require('mongoose')
 
 const templateCategorySchema = new mongoose.Schema(
   {
@@ -24,7 +24,20 @@ const templateCategorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export const TemplateCategory = mongoose.model(
-  "TemplateCategory",
-  templateCategorySchema
-);
+module.exports = mongoose.model('TemplateCategory', templateCategorySchema);
+
+
+
+
+// Welcome
+// Promotion
+// Newsletter
+// Transactional
+// Abandoned Cart
+// Product Launch
+// Re-engagement
+// Post-Purchase
+// Event / Webinar
+// Survey / Feedback
+// Seasonal / Holiday
+// Referral

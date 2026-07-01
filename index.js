@@ -6,6 +6,8 @@ const userRoute = require('./routes/userRoute');
 const aiRoute = require('./routes/aiRoute');
 const contactRoute = require('./routes/contactRoute')
 const listRoute = require('./routes/listRoute')
+const templateCategoryRoute = require('./routes/templateCategoryRoute')
+const templateRoute = require('./routes/templateRoute')
 const connectDB = require('./config/db');
 const cors = require('cors');
 connectDB();
@@ -28,6 +30,8 @@ app.use('/api', userRoute);
 app.use('/api',aiRoute);
 app.use('/api',contactRoute)
 app.use('/api',listRoute)
+app.use('/api',templateCategoryRoute)
+app.use('/api',templateRoute);
 
 app.listen(port, () => {  console.log(`Example app listening at http://localhost:${port}`);
 });
