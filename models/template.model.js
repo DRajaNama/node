@@ -30,6 +30,10 @@ const userTemplateSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    thumb: {
+      type: String,
+      required: true,
+    },
     status: {
       type: String,
       enum: ["draft", "published", "archived"],
