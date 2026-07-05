@@ -9,9 +9,21 @@ const listRoute = require('./routes/listRoute')
 const templateCategoryRoute = require('./routes/templateCategoryRoute')
 const templateRoute = require('./routes/templateRoute')
 const connectDB = require('./config/db');
+const helmet = require('helmet')
 const cors = require('cors');
 connectDB();
 app.use(express.json());
+
+
+app.use(
+  helmet({
+    crossOriginResourcePolicy: false,
+  })
+);
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use("/uploads", express.static("uploads"));
 
 app.use(
   cors({

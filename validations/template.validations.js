@@ -46,6 +46,10 @@ const templateUpdateValidation = (data) => {
         errors.templateId = 'TemplateId cannot be empty';
     }
 
+    if (data.html && data.html.trim() === '') {
+        errors.html = 'HTML cannot be empty';
+    }
+
     if (data.status && ![true, false].includes(data.status)) {
         errors.status = 'Status must be either True or False';
     }

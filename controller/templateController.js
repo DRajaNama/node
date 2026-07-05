@@ -3,6 +3,9 @@ const { templateCreateValidation, templateUpdateValidation } = require('../valid
 const { getBlankTemplate } = require('../utils/template.utils');
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
+const fs = require('fs').promises;
+const path = require('path');
+
 
 const TemplateController = {
 
@@ -81,7 +84,10 @@ const TemplateController = {
             if (!template) {
                 return res.status(404).send({ data: null, message: Message.NOT_FOUND });
             }
-
+            // HANDLE FILE UPLOAD
+            if (req.file) {
+            req.body.thumb = req.file.filename; // save only filename
+            }
             Object.assign(template, req.body);
             await template.save();
 
@@ -112,6 +118,19 @@ const TemplateController = {
                 return res.status(404).send({ data: null, message: Message.NOT_FOUND });
             }
 
+            if(template.thumb){
+                 const filePath = path.join(__dirname, '..', 'uploads', 'templates', template.thumb);
+                try {
+                    await fs.unlink(filePath);
+                    console.log('Old thumbnail deleted');
+                } catch (err) {
+                    // Ignore if file doesn't exist
+                    if (err.code !== 'ENOENT') {
+                        console.error('Error deleting thumbnail:', err);
+                    }
+                }
+            }
+
             await TemplateService.deleteTemplate(req.params.id);
 
             logger.info(Message.LOG_END+' - '+Message.TEMPLATE_CONTROLLER+Message.DELETE_ATTEMPT+Message.SUCCESS);
@@ -129,16 +148,15 @@ const TemplateController = {
 
         try {
 
-            const filter = {};
-
-            if (req.query.title) {
-                filter.title = { $regex: req.query.title, $options: 'i' };
+            let filter = {};
+            if (req.query.search) {
+               filter = {
+                    $or: [
+                        { title: { $regex: req.query.search, $options: 'i' } },
+                    ]
+                }
             }
-
-            if (req.query.status) {
-                filter.status = req.query.status;
-            }
-
+           
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
 

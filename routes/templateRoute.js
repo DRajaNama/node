@@ -7,6 +7,7 @@ const adminMiddleware = require('../middleware/admin.middleware');
 const { validatePayload } = require('../middleware/common.middleware');
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
+const imageUpload = require('../middleware/image.upload.middleware');
 
 router.post('/template/create', authMiddleware, validatePayload, (req, res, next) => {
   logger.info(Message.LOG_START + ' - ' + Message.TEMPLATE_CREATE_ATTEMPT);
@@ -18,7 +19,7 @@ router.get('/template/:id', authMiddleware, (req, res, next) => {
   templateController.getTemplate(req, res, next);
 });
 
-router.put('/template/update/:id', authMiddleware, validatePayload, (req, res, next) => {
+router.post('/template/update/:id', authMiddleware, imageUpload.single('thumb'), validatePayload ,  (req, res, next) => {
   logger.info(Message.LOG_START + ' - ' + Message.TEMPLATE_UPDATE_ATTEMPT);
   templateController.updateTemplate(req, res, next);
 });
@@ -30,7 +31,7 @@ router.delete('/template/delete/:id', authMiddleware, (req, res, next) => {
 
 router.get('/templates', authMiddleware, (req, res, next) => {
   logger.info(Message.LOG_START + ' - ' + Message.GET_ALL_TEMPLATE_ATTEMPT);
-  templateController.getAllCategories(req, res, next);
+  templateController.getAllTemplates(req, res, next);
 });
 
 module.exports = router;

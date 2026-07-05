@@ -33,6 +33,7 @@ const userTemplateSchema = new mongoose.Schema(
     thumb: {
       type: String,
       required: true,
+      default:'template.png'
     },
     status: {
       type: String,

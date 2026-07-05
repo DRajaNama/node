@@ -31,8 +31,11 @@ const TemplateService = {
             }
 
             return await Template.find(filter)
+                .select('-html')                 // Exclude html
+                .populate('categoryId', 'title') // Include only category title
                 .skip((page - 1) * limit)
                 .limit(limit);
+
         } catch (error) {
             throw new Error(Message.ERROR_IN + Message.TEMPLATE_FETCH_ATTEMPT);
         }
