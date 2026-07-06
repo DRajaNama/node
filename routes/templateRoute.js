@@ -24,6 +24,11 @@ router.post('/template/update/:id', authMiddleware, imageUpload.single('thumb'),
   templateController.updateTemplate(req, res, next);
 });
 
+router.post('/template/updateInfo/:id', authMiddleware, validatePayload ,  (req, res, next) => {
+  logger.info(Message.LOG_START + ' - ' + Message.TEMPLATE_UPDATE_ATTEMPT);
+  templateController.updateTemplate(req, res, next);
+});
+
 router.delete('/template/delete/:id', authMiddleware, (req, res, next) => {
   logger.info(Message.LOG_START + ' - ' + Message.TEMPLATE_DELETE_ATTEMPT);
   templateController.deleteTemplate(req, res, next);
