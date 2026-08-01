@@ -68,6 +68,7 @@ const Message = {
 
     RECORD_CREATED: 'Record created successfully',
     RECORD_UPDATED: 'Record updated successfully',
+    RECORD_DELETED: 'Record deleted successfully',
     DUPLICATE_RECORD: 'Record already exists',
 
     UPLOAD_FILE: 'Upload File',
@@ -107,6 +108,22 @@ const Message = {
     TEMPLATE_UPDATE_ATTEMPT: 'Template Update Attempt',
     TEMPLATE_DELETE_ATTEMPT: 'Template Delete Attempt',
     TEMPLATE_FETCH_ATTEMPT: 'Template Fetch Attempt',
+
+
+     // Existing messages...
+
+    CAMPAIGN_CONTROLLER: "CAMPAIGN_CONTROLLER",
+    SEND_CAMPAIGN_ATTEMPT: "SEND_CAMPAIGN_ATTEMPT",
+    PAUSE_CAMPAIGN_ATTEMPT: "PAUSE_CAMPAIGN_ATTEMPT",
+    RESUME_CAMPAIGN_ATTEMPT: "RESUME_CAMPAIGN_ATTEMPT",
+    CANCEL_CAMPAIGN_ATTEMPT: "CANCEL_CAMPAIGN_ATTEMPT",
+    ANALYTICS_ATTEMPT: "ANALYTICS_ATTEMPT",
+    RECIPIENT_ATTEMPT: "RECIPIENT_ATTEMPT",
+    CAMPAIGN_SEND_SUCCESS: "Campaign send started successfully",
+    CAMPAIGN_PAUSED_SUCCESS: "Campaign paused successfully",
+    CAMPAIGN_RESUME_SUCCESS: "Campaign resumed successfully",
+    CAMPAIGN_CANCEL_SUCCESS: "Campaign cancelled successfully",
+    INVALID_STATUS: "Invalid campaign status",
 
 };
 

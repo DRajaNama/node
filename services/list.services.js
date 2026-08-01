@@ -23,14 +23,15 @@ const ListService = {
             throw error;
         }
     },
-    getAllRecord: async (filter,page = 1, limit = 10) => {
+    getAllRecord: async (filter,page = 1, limit = 10,formats={}) => {
+        console.log('filter',filter,page,limit,formats)
         try {
             const countOnly = filter.countOnly;
             delete filter.countOnly;
             if (countOnly) {
                 return await List.countDocuments(filter);
             }
-            return await List.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit);
+            return await List.find(filter,formats).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit);
         } catch (error) {
             throw error;
         }

@@ -237,6 +237,33 @@ const ListController = {
             res.status(500).send({data: null, message: Message.SERVER_ERROR});
         }
     },
+    autocomplete: async (req, res) => {
+        logger.info(Message.LOG_START+' - '+Message.LIST_CONTROLLER+Message.GET_ALL_RECORD_ATTEMPT);
+        try {
+            let filter = {};
+            if (req.query.search) {
+               filter = {
+                    $or: [
+                        { name: { $regex: req.query.search, $options: 'i' } },
+                        { description: { $regex: req.query.search, $options: 'i' } },
+                        { type: { $regex: req.query.search, $options: 'i' } },
+                    ]
+                }
+            }
+            let format = {
+                    _id: 1,
+                    name: 1,
+                    contactCount:1
+                }
+            const data = await ListService.getAllRecord(filter, parseInt(req.query.page) || 1, parseInt(req.query.limit) || 10,format);
+            const totalUsers = await ListService.getAllRecord({ ...filter, countOnly: true });
+            logger.info(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.GET_ALL_RECORD_ATTEMPT+Message.SUCCESS);
+            res.send({ data: data, message: Message.SUCCESS, meta: { page: parseInt(req.query.page) || 1, limit: parseInt(req.query.limit) || 10, total: totalUsers } });
+        } catch (error) {
+            logger.error(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.GET_ALL_RECORD_ATTEMPT+Message.ERROR_IN, error);
+            res.status(500).send({data: null, message: Message.SERVER_ERROR});
+        }
+    },
 };
 
 module.exports = ListController;

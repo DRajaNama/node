@@ -8,9 +8,11 @@ const contactRoute = require('./routes/contactRoute')
 const listRoute = require('./routes/listRoute')
 const templateCategoryRoute = require('./routes/templateCategoryRoute')
 const templateRoute = require('./routes/templateRoute')
+const campaignRoute = require('./routes/campaignRoute')
 const connectDB = require('./config/db');
 const helmet = require('helmet')
 const cors = require('cors');
+require('./workers/email.worker');
 connectDB();
 app.use(express.json());
 
@@ -44,6 +46,7 @@ app.use('/api',contactRoute)
 app.use('/api',listRoute)
 app.use('/api',templateCategoryRoute)
 app.use('/api',templateRoute);
+app.use('/api',campaignRoute);
 
 app.listen(port, () => {  console.log(`Example app listening at http://localhost:${port}`);
 });

@@ -47,4 +47,9 @@ router.get('/list/:id/contacts', authMiddleware, (req, res, next) => {
   ListController.listContects(req, res, next);
 });
 
+router.get('/lists/autocomplete', authMiddleware, (req, res, next) => {
+  logger.info(Message.LOG_START+' - '+Message.FETCHING_USER_INFO);
+  ListController.autocomplete(req, res, next);
+});
+
 module.exports = router;
