@@ -38,5 +38,8 @@ router.get('/templates', authMiddleware, (req, res, next) => {
   logger.info(Message.LOG_START + ' - ' + Message.GET_ALL_TEMPLATE_ATTEMPT);
   templateController.getAllTemplates(req, res, next);
 });
-
+router.get('/templates/autocomplete', authMiddleware, (req, res, next) => {
+  logger.info(Message.LOG_START+' - '+Message.FETCHING_USER_INFO);
+  templateController.autocomplete(req, res, next);
+});
 module.exports = router;

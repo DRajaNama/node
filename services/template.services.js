@@ -21,7 +21,21 @@ const TemplateService = {
         }
     },
 
-    getAllTemplates: async (filter = {}, page = 1, limit = 10) => {
+    // getAllRecord: async (filter,page = 1, limit = 10,formats={}) => {
+    //         console.log('filter',filter,page,limit,formats)
+    //         try {
+    //             const countOnly = filter.countOnly;
+    //             delete filter.countOnly;
+    //             if (countOnly) {
+    //                 return await List.countDocuments(filter);
+    //             }
+    //             return await List.find(filter,formats).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit);
+    //         } catch (error) {
+    //             throw error;
+    //         }
+    //     },
+
+    getAllTemplates: async (filter = {}, page = 1, limit = 10,format={}) => {
         try {
             const countOnly = filter.countOnly;
             delete filter.countOnly;
@@ -30,7 +44,7 @@ const TemplateService = {
                 return await Template.countDocuments(filter);
             }
 
-            return await Template.find(filter)
+            return await Template.find(filter,format)
                 .select('-html')                 // Exclude html
                 .populate('categoryId', 'title') // Include only category title
                 .skip((page - 1) * limit)

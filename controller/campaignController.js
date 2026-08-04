@@ -61,6 +61,11 @@ const CampaignController = {
                 logError(Message.DUPLICATE_RECORD + Message.CREATE_ATTEMPT, {});
                 return res.status(400).send({ data: null, message: Message.DUPLICATE_RECORD });
             }
+            let body = req.body;
+            // add fromName, fromEmail, replyTo from .env
+            body.fromName = process.env.FROM_NAME || 'System';
+            body.fromEmail = process.env.FROM_EMAIL || 'rajanamdav@gmail.com';
+            body.replyTo = process.env.REPLY_TO || 'rajanamdav@gmail.com';
 
             const record = await CampaignService.createRecord(req.body);
             logEnd(Message.CREATE_ATTEMPT, { campaignId: record._id });

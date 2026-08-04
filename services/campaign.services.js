@@ -39,6 +39,18 @@ const CampaignService = {
         }
 
         return await Campaign.find(filter)
+            // .populate({
+            //     path: "templateId",
+            //     select: "name subject thumbnail"
+            // })
+            // .populate({
+            //     path: "listIds",
+            //     select: "name"
+            // })
+            // .populate({
+            //     path: "excludedListIds",
+            //     select: "name"
+            // })
             .sort({ createdAt: -1 })
             .skip((page - 1) * limit)
             .limit(limit);

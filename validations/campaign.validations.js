@@ -9,15 +9,15 @@ const campaignCreateValidation = (data) => {
         errors.subject = 'Subject is required';
     }
 
-    if (!data.fromName || data.fromName.trim() === '') {
-        errors.fromName = 'From name is required';
-    }
+    // if (!data.fromName || data.fromName.trim() === '') {
+    //     errors.fromName = 'From name is required';
+    // }
 
-    if (!data.fromEmail || data.fromEmail.trim() === '') {
-        errors.fromEmail = 'From email is required';
-    } else if (!/\S+@\S+\.\S+/.test(data.fromEmail)) {
-        errors.fromEmail = 'From email is invalid';
-    }
+    // if (!data.fromEmail || data.fromEmail.trim() === '') {
+    //     errors.fromEmail = 'From email is required';
+    // } else if (!/\S+@\S+\.\S+/.test(data.fromEmail)) {
+    //     errors.fromEmail = 'From email is invalid';
+    // }
 
     if (!data.templateId || data.templateId.trim() === '') {
         errors.templateId = 'Template is required';

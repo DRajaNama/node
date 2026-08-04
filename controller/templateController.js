@@ -179,7 +179,37 @@ const TemplateController = {
             logger.error(Message.LOG_END+' - '+Message.TEMPLATE_CONTROLLER+Message.ERROR_IN+Message.GET_ALL_ATTEMPT, error);
             res.status(500).send({ data: null, message: Message.SERVER_ERROR });
         }
-    }
+    },
+
+    autocomplete: async (req, res) => {
+        logger.info(Message.LOG_START+' - '+Message.TEMPLATE_CONTROLLER+Message.GET_ALL_RECORD_ATTEMPT);
+        try {
+            let filter = {};
+            if (req.query.search) {
+               filter = {
+                    $or: [
+                        { title: { $regex: req.query.search, $options: 'i' } },
+                        { description: { $regex: req.query.search, $options: 'i' } },
+                        { type: { $regex: req.query.search, $options: 'i' } },
+                    ]
+                }
+            }
+            let format = {
+                    _id: 1,
+                    title: 1,
+                    thumb: 1,
+                    description:1,
+                    templateCount:1
+                }
+            const data = await TemplateService.getAllTemplates(filter, parseInt(req.query.page) || 1, parseInt(req.query.limit) || 10,format);
+            const totalUsers = await TemplateService.getAllTemplates({ ...filter, countOnly: true });
+            logger.info(Message.LOG_END+' - '+Message.TEMPLATE_CONTROLLER+Message.GET_ALL_RECORD_ATTEMPT+Message.SUCCESS);
+            res.send({ data: data, message: Message.SUCCESS, meta: { page: parseInt(req.query.page) || 1, limit: parseInt(req.query.limit) || 10, total: totalUsers } });
+        } catch (error) {
+            logger.error(Message.LOG_END+' - '+Message.TEMPLATE_CONTROLLER+Message.GET_ALL_RECORD_ATTEMPT+Message.ERROR_IN, error);
+            res.status(500).send({data: null, message: Message.SERVER_ERROR});
+        }
+    },
 };
 
 module.exports = TemplateController;
