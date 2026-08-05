@@ -75,7 +75,8 @@ const CampaignSendService = {
                 contactId: recipient.contactId.toString(),
                 email: recipient.email,
                 firstName: recipient.firstName,
-                lastName: recipient.lastName
+                lastName: recipient.lastName,
+                trackingToken: recipient.trackingToken
             }
         }));
 

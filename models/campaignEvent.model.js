@@ -12,7 +12,8 @@ const campaignEventSchema = new mongoose.Schema(
     recipientId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "CampaignRecipient",
-      required: true
+      required: true,
+      index:true
     },
 
     event: {
@@ -34,7 +35,11 @@ const campaignEventSchema = new mongoose.Schema(
     country: String,
     city: String,
     userAgent: String,
-    url: String
+    url: String,
+    metadata:{
+      type:Object,
+      default:{}
+    }
   },
   {
     timestamps: true,

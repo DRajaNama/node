@@ -3,6 +3,7 @@ const CampaignRecipient = require('../models/campaignRecipient.model');
 const CampaignEvent = require('../models/campaignEvent.model');
 const Message = require('../helpers/constant.message');
 const { ObjectId } = require('mongodb');
+const crypto=require("crypto");
 
 const CampaignService = {
 
@@ -204,7 +205,13 @@ const CampaignService = {
     },
 
     createRecipients: async (data) => {
-        return await CampaignRecipient.insertMany(data);
+
+        const recipients = data.map(item=>({
+            ...item,
+            trackingToken: crypto.randomBytes(32).toString("hex")
+        }));
+
+        return await CampaignRecipient.insertMany(recipients);
     },
 
     updateRecipientStatus: async (id, statusData) => {

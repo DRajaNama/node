@@ -32,7 +32,8 @@ const processEmailJob = async (data) => {
 
     const html = replaceTemplateVariables(template.html, {
         firstName: data.firstName,
-        lastName: data.lastName
+        lastName: data.lastName,
+        trackingToken: data.trackingToken
     });
 
     await CampaignService.updateRecipientStatus(data.recipientId, {

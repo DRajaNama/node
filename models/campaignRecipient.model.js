@@ -27,8 +27,14 @@ const campaignRecipientSchema = new mongoose.Schema(
       required: true
     },
 
-    firstName: String,
-    lastName: String,
+    firstName:String,
+    lastName:String,
+
+    trackingToken:{
+        type:String,
+        unique:true,
+        index:true
+    },
 
     status: {
       type: String,
