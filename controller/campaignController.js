@@ -29,7 +29,7 @@ const getOwnedCampaign = async (req, res, action) => {
     const campaignId = requireCampaignId(req, res);
     if (!campaignId) return null;
 
-    const campaign = await CampaignService.findByIdAndUserId(campaignId, req.userId);
+    const campaign = await CampaignService.findByIdAndUserIdPopulate(campaignId, req.userId);
     if (!campaign) {
         logError(action, { campaignId });
         res.status(404).send({ data: null, message: Message.DATA_NOT_FOUND });
@@ -63,7 +63,7 @@ const CampaignController = {
             }
             let body = req.body;
             // add fromName, fromEmail, replyTo from .env
-            body.fromName = process.env.FROM_NAME || 'System';
+            body.fromName = process.env.FROM_NAME || 'MailFlow Pro';
             body.fromEmail = process.env.FROM_EMAIL || 'rajanamdav@gmail.com';
             body.replyTo = process.env.REPLY_TO || 'rajanamdav@gmail.com';
 
@@ -86,7 +86,7 @@ const CampaignController = {
             if (!campaign) return;
 
             logEnd(Message.FETCHING_RECORD, { campaignId: req.params.id });
-            res.send({ data: { record: campaign }, message: Message.SUCCESS });
+            res.send({ data: campaign, message: Message.SUCCESS });
         } catch (error) {
             handleServerError(res, Message.FETCHING_RECORD, error);
         }

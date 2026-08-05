@@ -23,6 +23,32 @@ const CampaignService = {
         });
     },
 
+    findByIdAndUserIdPopulate: async (campaignId, userId) => {
+
+        const campaign = await Campaign.findOne({
+            _id: campaignId,
+            userId
+        })
+        .populate({
+            path: 'templateId',
+            select: '_id title'
+        })
+        .populate({
+            path: 'listIds',
+            select: '_id name'
+        });
+
+        if (!campaign) {
+            return null;
+        }
+
+        return {
+            ...campaign.toObject(),
+            template: campaign.templateId,
+            lists: campaign.listIds
+        };
+    },
+
     findByNameAndUserId: async (name, userId) => {
         return await Campaign.findOne({
             name: name,
