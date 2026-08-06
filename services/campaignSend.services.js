@@ -4,10 +4,24 @@ const Message = require('../helpers/constant.message');
 const emailQueue = require('../queues/email.queue');
 const CampaignService = require('./campaign.services');
 const { CAMPAIGN_STATUS, SENDABLE_STATUSES, RECIPIENT_STATUS } = require('../constants/campaign.constants');
+const SettingsService = require('./setting.services');
+const { ObjectId } = require('mongodb');
 
 const CampaignSendService = {
 
     startCampaign: async (campaignId, userId) => {
+
+        const query = [{
+            $match: {
+                user: new ObjectId(userId)
+            }
+        }];
+        const smtp = await SettingsService.getUserSMTP(query);
+        console.log('smtp',smtp)
+        if (!smtp) {
+            throw new Error(Message.SMTP_NOT_FOUND);
+        }
+
         const campaign = await CampaignService.findByIdAndUserId(campaignId, userId);
 
         if (!campaign) {
@@ -70,6 +84,7 @@ const CampaignSendService = {
         const jobs = insertedRecipients.map((recipient) => ({
             name: 'send-email',
             data: {
+                userId:userId,
                 campaignId: campaign._id.toString(),
                 recipientId: recipient._id.toString(),
                 contactId: recipient.contactId.toString(),
@@ -80,9 +95,36 @@ const CampaignSendService = {
             }
         }));
 
-        await emailQueue.addBulk(jobs);
+        let queueJobs = jobs;
+        if (campaign.sendType === "schedule") {
+            if (!campaign.scheduledAt) {
+                throw new Error(
+                    "Schedule time required"
+                );
+            }
+            const delay = new Date(campaign.scheduledAt).getTime() - Date.now();
+            if (delay <= 0) {
+                throw new Error(
+                    "Schedule time must be future"
+                );
+            }
+            queueJobs = jobs.map(job => ({
+                    ...job,
+                    opts: {
+                        delay: delay
+                    }
+                }));
 
-        campaign.status = CAMPAIGN_STATUS.SENDING;
+            campaign.status = CAMPAIGN_STATUS.SCHEDULED;
+
+
+        } else {
+            campaign.status = CAMPAIGN_STATUS.SENDING;
+        }
+        
+        await emailQueue.addBulk(queueJobs);
+
+        // campaign.status = CAMPAIGN_STATUS.SENDING;
         campaign.stats.total = insertedRecipients.length;
         campaign.stats.pending = insertedRecipients.length;
         await campaign.save();

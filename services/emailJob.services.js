@@ -4,6 +4,8 @@ const sendEmail = require('../helpers/email.provider');
 const { replaceTemplateVariables } = require('../helpers/template.helper');
 const CampaignService = require('./campaign.services');
 const { CAMPAIGN_STATUS, RECIPIENT_STATUS } = require('../constants/campaign.constants');
+const SettingsService = require('./setting.services');
+const { ObjectId } = require('mongodb');
 
 const SKIPPABLE_CAMPAIGN_STATUSES = [
     CAMPAIGN_STATUS.PAUSED,
@@ -11,6 +13,16 @@ const SKIPPABLE_CAMPAIGN_STATUSES = [
 ];
 
 const processEmailJob = async (data) => {
+     const query = [{
+        $match: {
+            user: new ObjectId(data.userId)
+        }
+    }];
+    const smtp = await SettingsService.getUserSMTP(query);
+    if (!smtp) {
+        throw new Error(Message.SMTP_NOT_FOUND);
+    }
+    
     const campaign = await Campaign.findById(data.campaignId);
 
     if (!campaign) {
@@ -46,7 +58,7 @@ const processEmailJob = async (data) => {
         fromName: campaign.fromName,
         fromEmail: campaign.fromEmail,
         html: html
-    });
+    },smtp);
 
     await CampaignService.updateRecipientStatus(data.recipientId, {
         status: RECIPIENT_STATUS.SENT,
@@ -58,7 +70,7 @@ const processEmailJob = async (data) => {
         'stats.pending': -1
     });
 
-    if (updatedCampaign?.stats?.pending <= 0 && updatedCampaign.status === CAMPAIGN_STATUS.SENDING) {
+    if (updatedCampaign?.stats?.pending <= 0 && [ CAMPAIGN_STATUS.SENDING, CAMPAIGN_STATUS.SCHEDULED].includes(updatedCampaign.status)){
         await CampaignService.updateRecord(data.campaignId, {
             status: CAMPAIGN_STATUS.COMPLETED
         });

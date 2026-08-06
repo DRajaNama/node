@@ -37,6 +37,24 @@ const SettingsService = {
         }
     },
 
+    getUserSMTP: async (query) => {
+        try {
+            console.log('query', query);
+
+            const settings = await Settings.aggregate(query);
+
+            if (!settings.length) {
+                throw new Error("SMTP settings not found");
+            }
+
+            return settings[0].smtp;
+        } catch (error) {
+            console.log('error on get User SMTP', error);
+            throw error;
+        }
+    }
+
+
 };
 
 module.exports = SettingsService;

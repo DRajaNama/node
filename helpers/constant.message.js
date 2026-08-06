@@ -125,6 +125,8 @@ const Message = {
     CAMPAIGN_CANCEL_SUCCESS: "Campaign cancelled successfully",
     INVALID_STATUS: "Invalid campaign status",
 
+    // SMTP settings
+    SMTP_NOT_FOUND: 'SMTP credentials not found. Please add SMTP credentials first to continue.'
 };
 
 module.exports = Message;
