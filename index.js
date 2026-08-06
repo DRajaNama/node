@@ -1,15 +1,7 @@
 const express = require('express');
 const app = express();
 const port = 3000;
-const authRoute = require('./routes/authRoute');
-const userRoute = require('./routes/userRoute');
-const aiRoute = require('./routes/aiRoute');
-const contactRoute = require('./routes/contactRoute')
-const listRoute = require('./routes/listRoute')
-const templateCategoryRoute = require('./routes/templateCategoryRoute')
-const templateRoute = require('./routes/templateRoute')
-const campaignRoute = require('./routes/campaignRoute')
-const dashboardRoute = require('./routes/dashboardRoute')
+const routeIndex = require('./routes/index');
 const connectDB = require('./config/db');
 const helmet = require('helmet')
 const cors = require('cors');
@@ -40,15 +32,7 @@ app.get('/health', (req, res) => {
     res.send('OK');
 });
 // prefix /api for all routes
-app.use('/api', authRoute);
-app.use('/api', userRoute);
-app.use('/api',aiRoute);
-app.use('/api',contactRoute)
-app.use('/api',listRoute)
-app.use('/api',templateCategoryRoute)
-app.use('/api',templateRoute);
-app.use('/api',campaignRoute);
-app.use('/api',dashboardRoute);
+app.use('/api', routeIndex);
 
 app.listen(port, () => {  console.log(`Example app listening at http://localhost:${port}`);
 });

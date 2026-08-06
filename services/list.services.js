@@ -24,7 +24,6 @@ const ListService = {
         }
     },
     getAllRecord: async (filter,page = 1, limit = 10,formats={}) => {
-        console.log('filter',filter,page,limit,formats)
         try {
             const countOnly = filter.countOnly;
             delete filter.countOnly;
