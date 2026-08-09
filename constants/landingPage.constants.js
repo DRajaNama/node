@@ -1,0 +1,28 @@
+const LANDING_PAGE_STATUS = {
+  DRAFT: 'draft',
+  SCHEDULED: 'scheduled',
+  PUBLISHED: 'published',
+  UNPUBLISHED: 'unpublished',
+};
+
+const PUBLISH_TYPE = {
+  NOW: 'now',
+  SCHEDULE: 'schedule',
+};
+
+const PUBLISHABLE_STATUSES = [
+  LANDING_PAGE_STATUS.DRAFT,
+  LANDING_PAGE_STATUS.SCHEDULED,
+  LANDING_PAGE_STATUS.UNPUBLISHED,
+];
+
+const LANDING_PAGE_QUEUE_NAME = 'landing-page-publish';
+const LANDING_PAGE_JOB_NAME = 'publish-landing-page';
+
+module.exports = {
+  LANDING_PAGE_STATUS,
+  PUBLISH_TYPE,
+  PUBLISHABLE_STATUSES,
+  LANDING_PAGE_QUEUE_NAME,
+  LANDING_PAGE_JOB_NAME,
+};

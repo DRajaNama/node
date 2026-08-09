@@ -6,6 +6,7 @@ const connectDB = require('./config/db');
 const helmet = require('helmet')
 const cors = require('cors');
 require('./workers/email.worker');
+require('./workers/landingPage.worker');
 connectDB();
 app.use(express.json());
 
