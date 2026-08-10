@@ -21,6 +21,13 @@ const systemSettingsSchema = new mongoose.Schema(
       primaryColor: { type: String, default: '' },
       secondaryColor: { type: String, default: '' },
     },
+    theme: {
+      primary: { type: String, default: '#2B2E46' },
+      secondary: { type: String, default: '#929EB1' },
+      background: { type: String, default: '#EFF4F6' },
+      accent: { type: String, default: '#F51D38' },
+      accentHover: { type: String, default: '#E40024' },
+    },
     smtp: {
       host: { type: String, default: '' },
       port: { type: Number, default: 587 },
@@ -51,6 +58,11 @@ const systemSettingsSchema = new mongoose.Schema(
       maintenanceMode: { type: Boolean, default: false },
       allowRegistration: { type: Boolean, default: true },
       requireEmailVerification: { type: Boolean, default: true },
+      loginAlert: { type: Boolean, default: false },
+    },
+    rolePermissions: {
+      user: { type: [String], default: [] },
+      admin: { type: [String], default: [] },
     },
   },
   { timestamps: true, versionKey: false }

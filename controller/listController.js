@@ -17,7 +17,6 @@ const ListController = {
                 return res.status(400).send({ errors });
             }
             req.body.userId = req.userId;
-            await EntitlementService.checkLimit(req.userId, 'lists', 1);
             const query = [{
                 $match: {
                 name: req.body.name,

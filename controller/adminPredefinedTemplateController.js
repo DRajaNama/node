@@ -42,6 +42,8 @@ const AdminPredefinedTemplateController = {
       if (req.query.type) filter.type = req.query.type;
       if (req.query.status) filter.status = req.query.status;
       if (req.query.category) filter.category = req.query.category;
+      if (req.query.isFeatured === 'true') filter.isFeatured = true;
+      if (req.query.isFeatured === 'false') filter.isFeatured = false;
       if (req.query.search) {
         filter.$or = [
           { name: { $regex: req.query.search, $options: 'i' } },

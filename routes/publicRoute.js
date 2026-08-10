@@ -11,5 +11,8 @@ router.get('/public/blog/posts', publicController.getBlogPosts);
 router.get('/public/blog/:slug', publicController.getBlogPost);
 router.get('/public/plans', publicController.getPublicPlans);
 router.get('/public/entitlements/registry', publicController.getPublicEntitlementRegistry);
+router.get('/public/theme', publicController.getPublicTheme);
+router.get('/public/maintenance-status', publicController.getMaintenanceStatus);
+router.get('/public/site-settings', publicController.getSiteSettings);
 
 module.exports = router;

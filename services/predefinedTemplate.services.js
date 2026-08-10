@@ -236,7 +236,6 @@ const PredefinedTemplateService = {
         break;
 
       case PREDEFINED_TEMPLATE_TYPES.POPUP:
-        await EntitlementService.checkLimit(userId, 'lead_capture_forms', 1);
         created = await FormPopup.create({
           userId,
           name: payload.name || predefined.name,

@@ -21,12 +21,24 @@ const UserService = {
             throw error;
         }
     },
-    findUserById: async (id) => {
+    findUserById: async (id, withPassword = false) => {
         try {
+            if (withPassword) {
+                return await User.findById(id).select('+password');
+            }
             return await User.findById(id);
         } catch (error) {
             throw error;
         }
+    },
+    updateProfile: async (id, { name, mobile, password }) => {
+        const user = await User.findById(id).select('+password');
+        if (!user) throw new Error(Message.USER_NOT_FOUND);
+        if (name) user.name = name;
+        if (mobile) user.mobile = mobile;
+        if (password) user.password = password;
+        await user.save();
+        return user;
     },
     verifyPassword: async (user, password) => {
         try {

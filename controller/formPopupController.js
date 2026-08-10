@@ -32,7 +32,6 @@ const FormPopupController = {
       if (!isValid) {
         return res.status(400).send({ errors });
       }
-      await EntitlementService.checkLimit(req.userId, 'lead_capture_forms', 1);
       const data = {
         userId: req.userId,
         name: req.body.name.trim(),

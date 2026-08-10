@@ -7,8 +7,9 @@ const { validatePayload } = require('../middleware/common.middleware');
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
 const upload = require('../helpers/upload')
+const { checkQuota } = require('../middleware/quota.middleware');
 
-router.post('/contact/create', authMiddleware, validatePayload, (req, res, next) => {
+router.post('/contact/create', authMiddleware, validatePayload, checkQuota('contacts'), (req, res, next) => {
   logger.info(Message.LOG_START+' - '+Message.REGISTRATION_ATTEMPT);
   ContactController.create(req, res, next);
 });

@@ -8,8 +8,17 @@ const { validatePayload } = require('../middleware/common.middleware');
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
 const imageUpload = require('../middleware/image.upload.middleware');
+const { checkQuota } = require('../middleware/quota.middleware');
 
-router.post('/template/create', authMiddleware, validatePayload, (req, res, next) => {
+const skipQuotaWhenPredefined = async (req) => {
+  const rawId =
+    req.body.defaultTemplateId ||
+    req.body.predefinedTemplateId ||
+    (req.body.templateId && req.body.templateId !== 'blank' ? req.body.templateId : null);
+  return rawId ? 0 : 1;
+};
+
+router.post('/template/create', authMiddleware, validatePayload, checkQuota('custom_email_templates', skipQuotaWhenPredefined), (req, res, next) => {
   logger.info(Message.LOG_START + ' - ' + Message.TEMPLATE_CREATE_ATTEMPT);
   templateController.createTemplate(req, res, next);
 });

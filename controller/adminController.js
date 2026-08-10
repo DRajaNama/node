@@ -3,7 +3,7 @@ const logger = require('../helpers/logging');
 const AdminService = require('../services/admin.services');
 const AuditLogService = require('../services/auditLog.services');
 const UserService = require('../services/user.services');
-const { getEffectivePermissions } = require('../config/permissions');
+const { getEffectivePermissions } = require('../config/permissionsRuntime');
 
 const audit = async (req, action, resource, resourceId, metadata) => {
   try {
@@ -77,10 +77,103 @@ const AdminController = {
         name: role,
         permissions: getEffectivePermissions(role),
         isSystem: true,
+        editable: role !== 'super_admin',
       }));
       res.send({ data: { roles, allPermissions: permissions, rolePermissions }, message: Message.SUCCESS });
     } catch (error) {
       res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
+  updateRolePermissions: async (req, res) => {
+    try {
+      const data = await AdminService.updateRolePermissions(req.params.role, req.body.permissions);
+      await audit(req, 'Role Permissions Updated', 'Role', req.params.role, { permissions: data.permissions });
+      res.send({ data, message: Message.RECORD_UPDATED });
+    } catch (error) {
+      res.status(400).send({ data: null, message: error.message || Message.SERVER_ERROR });
+    }
+  },
+
+  getRoleStats: async (req, res) => {
+    try {
+      const data = await AdminService.getRoleStats();
+      res.send({ data, message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
+  getPlanStats: async (req, res) => {
+    try {
+      const data = await AdminService.getPlanStats();
+      res.send({ data, message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
+  getCouponStats: async (req, res) => {
+    try {
+      const data = await AdminService.getCouponStats();
+      res.send({ data, message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
+  getCampaignStats: async (req, res) => {
+    try {
+      const data = await AdminService.getCampaignStats();
+      res.send({ data, message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
+  getLogStats: async (req, res) => {
+    try {
+      const data = await AdminService.getLogStats();
+      res.send({ data, message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
+  getBlogStats: async (req, res) => {
+    try {
+      const data = await AdminService.getBlogStats();
+      res.send({ data, message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
+  getNotificationStats: async (req, res) => {
+    try {
+      const data = await AdminService.getNotificationStats();
+      res.send({ data, message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
+  getSupportStats: async (req, res) => {
+    try {
+      const data = await AdminService.getSupportStats();
+      res.send({ data, message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
+  verifyUserEmail: async (req, res) => {
+    try {
+      const user = await AdminService.verifyUserEmail(req.params.id);
+      await audit(req, 'Email Verified', 'User', user._id);
+      res.send({ data: user, message: Message.USER_UPDATED });
+    } catch (error) {
+      res.status(404).send({ data: null, message: error.message || Message.USER_NOT_FOUND });
     }
   },
 
@@ -513,6 +606,35 @@ const AdminController = {
     try {
       const settings = await AdminService.getSystemSettings();
       res.send({ data: settings.security || {}, message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
+  getThemeSettings: async (req, res) => {
+    try {
+      const data = await AdminService.getThemeSettings();
+      res.send({ data, message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
+  updateThemeSettings: async (req, res) => {
+    try {
+      const data = await AdminService.updateThemeSettings(req.body);
+      await audit(req, 'Theme Changed', 'SystemSettings', 'global');
+      res.send({ data, message: Message.RECORD_UPDATED });
+    } catch (error) {
+      res.status(400).send({ data: null, message: error.message || Message.SERVER_ERROR });
+    }
+  },
+
+  resetThemeSettings: async (req, res) => {
+    try {
+      const data = await AdminService.resetThemeSettings();
+      await audit(req, 'Theme Reset', 'SystemSettings', 'global');
+      res.send({ data, message: Message.RECORD_UPDATED });
     } catch (error) {
       res.status(500).send({ data: null, message: Message.SERVER_ERROR });
     }

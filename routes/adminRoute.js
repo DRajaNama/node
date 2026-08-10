@@ -5,6 +5,7 @@ const adminMiddleware = require('../middleware/admin.middleware');
 const permissionMiddleware = require('../middleware/permission.middleware');
 const AdminController = require('../controller/adminController');
 const { PERMISSIONS } = require('../config/permissions');
+const superAdminMiddleware = require('../middleware/superAdmin.middleware');
 
 const admin = [authMiddleware, adminMiddleware];
 const withPerm = (perm) => [authMiddleware, adminMiddleware, permissionMiddleware(perm)];
@@ -14,15 +15,20 @@ router.get('/analytics', withPerm(PERMISSIONS.ANALYTICS_VIEW), AdminController.g
 
 router.get('/permissions', withPerm(PERMISSIONS.ROLES_VIEW), AdminController.getPermissions);
 router.get('/roles', withPerm(PERMISSIONS.ROLES_VIEW), AdminController.getRoles);
+router.get('/roles/stats', withPerm(PERMISSIONS.ROLES_VIEW), AdminController.getRoleStats);
+router.put('/roles/:role/permissions', withPerm(PERMISSIONS.ROLES_MANAGE), AdminController.updateRolePermissions);
 router.put('/users/:id/permissions', withPerm(PERMISSIONS.ROLES_MANAGE), AdminController.updateUserPermissions);
+router.post('/users/:id/verify-email', withPerm(PERMISSIONS.USERS_EDIT), AdminController.verifyUserEmail);
 
 router.get('/campaigns', withPerm(PERMISSIONS.MARKETING_VIEW), AdminController.listCampaigns);
+router.get('/campaigns/stats', withPerm(PERMISSIONS.MARKETING_VIEW), AdminController.getCampaignStats);
 router.get('/templates', withPerm(PERMISSIONS.MARKETING_VIEW), AdminController.listTemplates);
 router.get('/contacts', withPerm(PERMISSIONS.MARKETING_VIEW), AdminController.listContacts);
 router.get('/landing-pages', withPerm(PERMISSIONS.MARKETING_VIEW), AdminController.listLandingPages);
 router.get('/leads', withPerm(PERMISSIONS.MARKETING_VIEW), AdminController.listLeads);
 
 router.get('/plans', withPerm(PERMISSIONS.PLANS_VIEW), AdminController.listPlans);
+router.get('/plans/stats', withPerm(PERMISSIONS.PLANS_VIEW), AdminController.getPlanStats);
 router.get('/entitlements/registry', withPerm(PERMISSIONS.PLANS_VIEW), AdminController.getEntitlementRegistry);
 router.post('/plans', withPerm(PERMISSIONS.PLANS_MANAGE), AdminController.createPlan);
 router.put('/plans/:id', withPerm(PERMISSIONS.PLANS_MANAGE), AdminController.updatePlan);
@@ -42,6 +48,7 @@ router.put('/payments/:id', withPerm(PERMISSIONS.PAYMENTS_MANAGE), AdminControll
 router.post('/payments/:id/refund', withPerm(PERMISSIONS.PAYMENTS_MANAGE), AdminController.refundPayment);
 
 router.get('/coupons', withPerm(PERMISSIONS.PLANS_MANAGE), AdminController.listCoupons);
+router.get('/coupons/stats', withPerm(PERMISSIONS.PLANS_MANAGE), AdminController.getCouponStats);
 router.post('/coupons', withPerm(PERMISSIONS.PLANS_MANAGE), AdminController.createCoupon);
 router.put('/coupons/:id', withPerm(PERMISSIONS.PLANS_MANAGE), AdminController.updateCoupon);
 router.delete('/coupons/:id', withPerm(PERMISSIONS.PLANS_MANAGE), AdminController.deleteCoupon);
@@ -49,9 +56,13 @@ router.delete('/coupons/:id', withPerm(PERMISSIONS.PLANS_MANAGE), AdminControlle
 router.get('/settings', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.getSystemSettings);
 router.put('/settings', withPerm(PERMISSIONS.SETTINGS_MANAGE), AdminController.updateSystemSettings);
 router.get('/settings/test-smtp', withPerm(PERMISSIONS.SETTINGS_MANAGE), AdminController.testSystemSmtp);
+router.get('/settings/theme', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.getThemeSettings);
+router.put('/settings/theme', admin, superAdminMiddleware, AdminController.updateThemeSettings);
+router.post('/settings/theme/reset', admin, superAdminMiddleware, AdminController.resetThemeSettings);
 router.get('/security', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.getSecuritySettings);
 
 router.get('/blog/posts', withPerm(PERMISSIONS.BLOGS_VIEW), AdminController.listBlogPosts);
+router.get('/blog/stats', withPerm(PERMISSIONS.BLOGS_VIEW), AdminController.getBlogStats);
 router.post('/blog/posts', withPerm(PERMISSIONS.BLOGS_MANAGE), AdminController.createBlogPost);
 router.put('/blog/posts/:id', withPerm(PERMISSIONS.BLOGS_MANAGE), AdminController.updateBlogPost);
 router.delete('/blog/posts/:id', withPerm(PERMISSIONS.BLOGS_MANAGE), AdminController.deleteBlogPost);
@@ -59,12 +70,15 @@ router.get('/blog/categories', withPerm(PERMISSIONS.BLOGS_VIEW), AdminController
 router.post('/blog/categories', withPerm(PERMISSIONS.BLOGS_MANAGE), AdminController.createBlogCategory);
 
 router.get('/notifications', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.listNotificationTemplates);
+router.get('/notifications/stats', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.getNotificationStats);
 router.post('/notifications', withPerm(PERMISSIONS.SETTINGS_MANAGE), AdminController.createNotificationTemplate);
 router.put('/notifications/:id', withPerm(PERMISSIONS.SETTINGS_MANAGE), AdminController.updateNotificationTemplate);
 router.delete('/notifications/:id', withPerm(PERMISSIONS.SETTINGS_MANAGE), AdminController.deleteNotificationTemplate);
 
 router.get('/logs', withPerm(PERMISSIONS.LOGS_VIEW), AdminController.listAuditLogs);
+router.get('/logs/stats', withPerm(PERMISSIONS.LOGS_VIEW), AdminController.getLogStats);
 router.get('/support', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.listSupportTickets);
+router.get('/support/stats', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.getSupportStats);
 router.put('/support/:id', withPerm(PERMISSIONS.SETTINGS_MANAGE), AdminController.updateSupportTicket);
 router.get('/smtp/providers', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.getSmtpProviders);
 router.get('/email-verification', withPerm(PERMISSIONS.ANALYTICS_VIEW), AdminController.getEmailVerificationStats);

@@ -37,7 +37,6 @@ const LandingPageController = {
       if (!isValid) {
         return res.status(400).send({ errors });
       }
-      await EntitlementService.checkLimit(req.userId, 'custom_landing_pages', 1);
       const data = {
         userId: req.userId,
         name: req.body.name.trim(),

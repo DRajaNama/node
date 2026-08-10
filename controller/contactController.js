@@ -18,7 +18,6 @@ const ContactController = {
                 return res.status(400).send({ errors });
             }
             req.body.userId = req.userId;
-            await EntitlementService.checkLimit(req.userId, 'contacts', 1);
             const query = [{
                 $match: {
                 email: req.body.email,

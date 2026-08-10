@@ -22,4 +22,8 @@ router.get('/me', authMiddleware, (req, res,next) => {
   authController.getUser(req, res, next);
 });
 
+router.put('/me', authMiddleware, (req, res, next) => {
+  authController.updateMe(req, res, next);
+});
+
 module.exports = router;

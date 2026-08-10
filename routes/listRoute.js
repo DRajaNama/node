@@ -6,8 +6,9 @@ const authMiddleware = require('../middleware/auth.middleware');
 const { validatePayload } = require('../middleware/common.middleware');
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
+const { checkQuota } = require('../middleware/quota.middleware');
 
-router.post('/list/create', authMiddleware, validatePayload, (req, res, next) => {
+router.post('/list/create', authMiddleware, validatePayload, checkQuota('lists'), (req, res, next) => {
   logger.info(Message.LOG_START+' - '+Message.REGISTRATION_ATTEMPT);
   ListController.create(req, res, next);
 });

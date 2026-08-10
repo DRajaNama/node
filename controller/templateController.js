@@ -42,7 +42,6 @@ const TemplateController = {
               templateData.thumb = predefined.thumb || 'template.png';
               await PredefinedTemplate.findByIdAndUpdate(predefined._id, { $inc: { useCount: 1 } });
             } else {
-              await EntitlementService.checkLimit(req.userId, 'custom_email_templates', 1);
               templateData.defaultTemplateId = null;
               templateData.predefinedTemplateVersion = null;
               templateData.status = 'draft';

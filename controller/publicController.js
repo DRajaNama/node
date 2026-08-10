@@ -194,6 +194,36 @@ const PublicController = {
       res.status(500).send({ data: null, message: Message.SERVER_ERROR });
     }
   },
+
+  getPublicTheme: async (req, res) => {
+    try {
+      const AdminService = require('../services/admin.services');
+      const data = await AdminService.getPublicTheme();
+      res.send({ data, message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
+  getMaintenanceStatus: async (req, res) => {
+    try {
+      const AdminService = require('../services/admin.services');
+      const data = await AdminService.getMaintenanceStatus();
+      res.send({ data, message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
+  getSiteSettings: async (req, res) => {
+    try {
+      const AdminService = require('../services/admin.services');
+      const data = await AdminService.getPublicSiteSettings();
+      res.send({ data, message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
 };
 
 module.exports = PublicController;

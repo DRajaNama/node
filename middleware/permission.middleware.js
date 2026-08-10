@@ -1,5 +1,5 @@
 const UserService = require('../services/user.services');
-const { hasPermission } = require('../config/permissions');
+const { hasPermission } = require('../config/permissionsRuntime');
 
 const permissionMiddleware = (requiredPermission) => async (req, res, next) => {
   try {

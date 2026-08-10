@@ -1,5 +1,8 @@
 const express = require("express");
 const router = express.Router();
+const maintenanceMiddleware = require('../middleware/maintenance.middleware');
+
+router.use(maintenanceMiddleware);
 
 router.use(require("./authRoute"));
 router.use(require("./userRoute"));

@@ -14,14 +14,18 @@ const BlogPost = require('../models/blogPost.model');
 const BlogCategory = require('../models/blogCategory.model');
 const NotificationTemplate = require('../models/notificationTemplate.model');
 const SupportTicket = require('../models/supportTicket.model');
+const AuditLog = require('../models/auditLog.model');
 const Settings = require('../models/settings.model');
 const {
   ALL_PERMISSIONS,
   ROLE_PERMISSIONS,
   getEffectivePermissions,
-} = require('../config/permissions');
+  getRuntimeRolePermissions,
+  updateRolePermissions: persistRolePermissions,
+} = require('../config/permissionsRuntime');
 const emailQueue = require('../queues/email.queue');
 const { EMAIL_QUEUE_NAME } = require('../constants/campaign.constants');
+const { DEFAULT_THEME, normalizeTheme, validateTheme } = require('../constants/theme.constants');
 
 const paginate = async (model, filter, page = 1, limit = 10, sort = { createdAt: -1 }, populate = '') => {
   const countOnly = filter.countOnly;
@@ -39,12 +43,27 @@ const buildSearchFilter = (search, fields) => {
   };
 };
 
+const resolveThemeFromSettings = (settings) => {
+  const theme = settings?.theme || {};
+  const legacy = settings?.branding || {};
+  return normalizeTheme({
+    primary: theme.primary || legacy.primaryColor,
+    secondary: theme.secondary || legacy.secondaryColor,
+    background: theme.background,
+    accent: theme.accent,
+    accentHover: theme.accentHover,
+  });
+};
+
 const AdminService = {
   getDashboardStats: async () => {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const [
       totalUsers, verifiedUsers, activeUsers, suspendedUsers,
       totalCampaigns, totalLandingPages, totalLeads, totalContacts, totalTemplates,
       totalPlans, activeSubscriptions, totalRevenue, totalBlogPosts, publishedPosts,
+      recentUsers, recentCampaigns, recentPayments, recentAuditLogs,
     ] = await Promise.all([
       User.countDocuments(),
       User.countDocuments({ isVerified: true }),
@@ -60,6 +79,10 @@ const AdminService = {
       Payment.aggregate([{ $match: { status: 'paid' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
       BlogPost.countDocuments(),
       BlogPost.countDocuments({ status: 'published' }),
+      User.find().sort({ createdAt: -1 }).limit(5).select('name email role isVerified isActive createdAt'),
+      Campaign.find().sort({ createdAt: -1 }).limit(5).select('name status createdAt stats'),
+      Payment.find().sort({ createdAt: -1 }).limit(5).select('amount status createdAt userId').populate('userId', 'name email'),
+      AuditLog.find().sort({ createdAt: -1 }).limit(8).populate('userId', 'name email'),
     ]);
 
     return {
@@ -74,6 +97,12 @@ const AdminService = {
         totalRevenue: totalRevenue[0]?.total || 0,
       },
       content: { blogPosts: totalBlogPosts, publishedPosts },
+      recent: {
+        users: recentUsers,
+        campaigns: recentCampaigns,
+        payments: recentPayments,
+        auditLogs: recentAuditLogs,
+      },
     };
   },
 
@@ -93,14 +122,125 @@ const AdminService = {
     return { subscriptionStats, paymentStats, userGrowth };
   },
 
-  getPermissions: () => ({ permissions: ALL_PERMISSIONS, rolePermissions: ROLE_PERMISSIONS }),
+  getPermissions: () => ({ permissions: ALL_PERMISSIONS, rolePermissions: getRuntimeRolePermissions() }),
 
-  updateRolePermissions: async (role, permissions) => {
-    if (!ROLE_PERMISSIONS[role] || role === 'super_admin') {
-      throw new Error('Cannot modify this role');
-    }
-    ROLE_PERMISSIONS[role] = permissions;
-    return { role, permissions: ROLE_PERMISSIONS[role] };
+  updateRolePermissions: (role, permissions) => persistRolePermissions(role, permissions),
+
+  getRoleStats: async () => {
+    const rolePermissions = getRuntimeRolePermissions();
+    const [adminUsers, superAdminUsers, usersWithCustomPerms] = await Promise.all([
+      User.countDocuments({ role: 'admin' }),
+      User.countDocuments({ role: 'super_admin' }),
+      User.countDocuments({ permissions: { $exists: true, $not: { $size: 0 } } }),
+    ]);
+    return {
+      totalRoles: 3,
+      activeRoles: 3,
+      totalPermissions: ALL_PERMISSIONS.length,
+      usersWithCustomPermissions: usersWithCustomPerms,
+      rolePermissions,
+      usersPerRole: { user: await User.countDocuments({ role: 'user' }), admin: adminUsers, super_admin: superAdminUsers },
+    };
+  },
+
+  getPlanStats: async () => {
+    const [total, active, subscribers, revenue] = await Promise.all([
+      Plan.countDocuments(),
+      Plan.countDocuments({ status: 'active' }),
+      Subscription.countDocuments({ status: { $in: ['active', 'trial'] } }),
+      Payment.aggregate([{ $match: { status: 'paid' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
+    ]);
+    return {
+      total,
+      active,
+      subscribers,
+      revenue: revenue[0]?.total || 0,
+    };
+  },
+
+  getCouponStats: async () => {
+    const now = new Date();
+    const [total, active, expired, usedAgg] = await Promise.all([
+      Coupon.countDocuments(),
+      Coupon.countDocuments({
+        isActive: true,
+        $or: [{ expiresAt: null }, { expiresAt: { $exists: false } }, { expiresAt: { $gt: now } }],
+      }),
+      Coupon.countDocuments({ expiresAt: { $lte: now } }),
+      Coupon.aggregate([{ $group: { _id: null, totalUsed: { $sum: '$usedCount' } } }]),
+    ]);
+    return { total, active, expired, totalUsed: usedAgg[0]?.totalUsed || 0 };
+  },
+
+  getCampaignStats: async () => {
+    const statusAgg = await Campaign.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]);
+    const map = Object.fromEntries(statusAgg.map((s) => [s._id, s.count]));
+    const sentFailed = await Campaign.aggregate([
+      { $group: { _id: null, sent: { $sum: '$stats.sent' }, failed: { $sum: '$stats.failed' } } },
+    ]);
+    const total = statusAgg.reduce((sum, s) => sum + s.count, 0);
+    const activeStatuses = ['processing', 'sending', 'scheduled'];
+    const active = activeStatuses.reduce((sum, st) => sum + (map[st] || 0), 0);
+    return {
+      total,
+      active,
+      scheduled: map.scheduled || 0,
+      completed: map.completed || 0,
+      sent: sentFailed[0]?.sent || 0,
+      failed: sentFailed[0]?.failed || 0,
+    };
+  },
+
+  getLogStats: async () => {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const [today, errors, warnings, success] = await Promise.all([
+      AuditLog.countDocuments({ createdAt: { $gte: startOfDay } }),
+      AuditLog.countDocuments({ action: { $regex: /error|fail/i } }),
+      AuditLog.countDocuments({ action: { $regex: /warn/i } }),
+      AuditLog.countDocuments({ action: { $regex: /success|created|updated/i } }),
+    ]);
+    return { today, errors, warnings, success, total: await AuditLog.countDocuments() };
+  },
+
+  getBlogStats: async () => {
+    const [total, published, draft, scheduled] = await Promise.all([
+      BlogPost.countDocuments(),
+      BlogPost.countDocuments({ status: 'published' }),
+      BlogPost.countDocuments({ status: 'draft' }),
+      BlogPost.countDocuments({ status: 'scheduled' }),
+    ]);
+    return { total, published, draft, scheduled };
+  },
+
+  getNotificationStats: async () => {
+    const [total, active, disabled] = await Promise.all([
+      NotificationTemplate.countDocuments(),
+      NotificationTemplate.countDocuments({ isEnabled: true }),
+      NotificationTemplate.countDocuments({ isEnabled: false }),
+    ]);
+    return { total, active, disabled };
+  },
+
+  getSupportStats: async () => {
+    const [open, inProgress, resolved, closed, total] = await Promise.all([
+      SupportTicket.countDocuments({ status: 'open' }),
+      SupportTicket.countDocuments({ status: 'in_progress' }),
+      SupportTicket.countDocuments({ status: 'resolved' }),
+      SupportTicket.countDocuments({ status: 'closed' }),
+      SupportTicket.countDocuments(),
+    ]);
+    return { open, inProgress, resolved, closed, total, pending: open + inProgress };
+  },
+
+  verifyUserEmail: async (userId) => {
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $set: { isVerified: true } },
+      { new: true }
+    );
+    if (!user) throw new Error('User not found');
+    return user;
   },
 
   listCampaigns: (filter, page, limit) =>
@@ -199,6 +339,63 @@ const AdminService = {
     let settings = await SystemSettings.findOne({ key: 'global' });
     if (!settings) settings = await SystemSettings.create({ key: 'global' });
     return settings;
+  },
+
+  getThemeSettings: async () => {
+    let settings = await SystemSettings.findOne({ key: 'global' });
+    if (!settings) settings = await SystemSettings.create({ key: 'global' });
+    return resolveThemeFromSettings(settings);
+  },
+
+  updateThemeSettings: async (payload) => {
+    const errors = validateTheme(payload);
+    if (errors.length) {
+      throw new Error(errors.join(', '));
+    }
+    const theme = normalizeTheme(payload);
+    const settings = await SystemSettings.findOneAndUpdate(
+      { key: 'global' },
+      { $set: { theme } },
+      { new: true, upsert: true, runValidators: true }
+    );
+    return resolveThemeFromSettings(settings);
+  },
+
+  resetThemeSettings: async () => {
+    const settings = await SystemSettings.findOneAndUpdate(
+      { key: 'global' },
+      { $set: { theme: { ...DEFAULT_THEME } } },
+      { new: true, upsert: true, runValidators: true }
+    );
+    return resolveThemeFromSettings(settings);
+  },
+
+  getPublicTheme: async () => {
+    let settings = await SystemSettings.findOne({ key: 'global' });
+    if (!settings) settings = await SystemSettings.create({ key: 'global' });
+    return resolveThemeFromSettings(settings);
+  },
+
+  getMaintenanceStatus: async () => {
+    const settings = await SystemSettings.findOne({ key: 'global' });
+    return {
+      maintenanceMode: settings?.security?.maintenanceMode || false,
+      message: settings?.general?.maintenanceMessage || 'We are currently performing maintenance. Please try again later.',
+    };
+  },
+
+  getPublicSiteSettings: async () => {
+    const settings = await SystemSettings.findOne({ key: 'global' });
+    const general = settings?.general || {};
+    const seo = settings?.seo || {};
+    return {
+      companyName: general.siteName || 'App',
+      logoUrl: general.logo || '',
+      faviconUrl: general.favicon || '',
+      siteName: general.siteName || 'App',
+      seoTitle: seo.defaultTitle || '',
+      seoDescription: seo.metaDescription || '',
+    };
   },
 
   updateSystemSettings: async (data) => {

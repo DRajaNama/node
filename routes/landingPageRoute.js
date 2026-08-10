@@ -4,8 +4,9 @@ const landingPageController = require('../controller/landingPageController');
 const authMiddleware = require('../middleware/auth.middleware');
 const { validatePayload } = require('../middleware/common.middleware');
 const imageUpload = require('../middleware/image.upload.middleware');
+const { checkQuota } = require('../middleware/quota.middleware');
 
-router.post('/landing-page/create', authMiddleware, validatePayload, landingPageController.create);
+router.post('/landing-page/create', authMiddleware, validatePayload, checkQuota('custom_landing_pages'), landingPageController.create);
 router.get('/landing-pages', authMiddleware, landingPageController.getAll);
 router.get('/landing-page/:id', authMiddleware, landingPageController.get);
 router.put('/landing-page/update/:id', authMiddleware, validatePayload, landingPageController.updateMeta);
