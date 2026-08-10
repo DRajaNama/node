@@ -76,6 +76,12 @@ const landingPageSchema = new mongoose.Schema(
       ogImage: { type: String, default: '' },
       canonicalUrl: { type: String, default: '' },
     },
+    predefinedTemplateId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PredefinedTemplate',
+      default: null,
+    },
+    predefinedTemplateVersion: { type: Number, default: null },
   },
   {
     timestamps: true,

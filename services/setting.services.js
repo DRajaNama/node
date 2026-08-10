@@ -4,7 +4,7 @@ const SettingsService = {
 
     findByUserId: async (userId) => {
         return await Settings.findOne({
-            userId: userId
+            user: userId
         }).select("+smtp.password");
     },
 

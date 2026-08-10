@@ -1,5 +1,8 @@
 const { listCreateValidation, listAddContactsValidation } = require('../validations/list.validations');
 const ListService = require('../services/list.services')
+const EntitlementService = require('../services/entitlement.services');
+const { handleQuotaError } = require('../middleware/quota.middleware');
+const QuotaExceededError = require('../helpers/quotaError');
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
 const { ObjectId } = require('mongodb');
@@ -14,6 +17,7 @@ const ListController = {
                 return res.status(400).send({ errors });
             }
             req.body.userId = req.userId;
+            await EntitlementService.checkLimit(req.userId, 'lists', 1);
             const query = [{
                 $match: {
                 name: req.body.name,
@@ -29,6 +33,9 @@ const ListController = {
             logger.info(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.CREATE_ATTEMPT+Message.SUCCESS, { userId: record._id });
             res.send({ data: record, message: Message.RECODE_CREATED });
         } catch (error) {
+            if (error instanceof QuotaExceededError) {
+                return handleQuotaError(res, error);
+            }
             if (error.code === 11000) {
                 logger.error(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.ERROR_IN+Message.CREATE_ATTEMPT, req.body.email);
                 return res.status(400).send({data: null, message: Message.EMAIL_ALREADY_EXISTS });
@@ -48,6 +55,9 @@ const ListController = {
             if (!record) {
                 logger.error(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.ERROR_IN+Message.FETCHING_USER_INFO, { userId: req.userId });
                 return res.status(404).send({data: null, message: Message.USER_NOT_FOUND});
+            }
+            if (record.userId.toString() !== req.userId) {
+                return res.status(403).send({ data: null, message: 'Access denied' });
             }
             logger.info(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.FETCHING_USER_INFO+Message.SUCCESS, { userId: req.userId });
             res.send({ data: { record }, message: Message.USER_FOUND });
@@ -89,6 +99,13 @@ const ListController = {
                 logger.error(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.ERROR_IN+Message.UPDATE_RECORD_ATTEMPT, { error: Message.ID_IS_REQUIRED });
                 return res.status(400).send({data: null, message: Message.ID_IS_REQUIRED});
             }
+            const existing = await ListService.findRecordById(req.params.id);
+            if (!existing) {
+                return res.status(404).send({ data: null, message: Message.DATA_NOT_FOUND });
+            }
+            if (existing.userId.toString() !== req.userId) {
+                return res.status(403).send({ data: null, message: 'Access denied' });
+            }
             const record = await ListService.updateRecord(req.params.id, req.body);
             logger.info(Message.LOG_END+' - '+Message.LIST_CONTROLLER+Message.UPDATE_RECORD_ATTEMPT+Message.SUCCESS, { userId: req.params.id });
             res.send({ data: record, message: Message.RECORD_UPDATED });
@@ -100,15 +117,21 @@ const ListController = {
     getAll: async (req, res) => {
         logger.info(Message.LOG_START+' - '+Message.LIST_CONTROLLER+Message.GET_ALL_RECORD_ATTEMPT);
         try {
-            let filter = {};
+            const ownerFilter = { userId: new ObjectId(req.userId) };
+            let filter = { ...ownerFilter };
             if (req.query.search) {
                filter = {
-                    $or: [
-                        { name: { $regex: req.query.search, $options: 'i' } },
-                        { description: { $regex: req.query.search, $options: 'i' } },
-                        { type: { $regex: req.query.search, $options: 'i' } },
+                    $and: [
+                        ownerFilter,
+                        {
+                            $or: [
+                                { name: { $regex: req.query.search, $options: 'i' } },
+                                { description: { $regex: req.query.search, $options: 'i' } },
+                                { type: { $regex: req.query.search, $options: 'i' } },
+                            ]
+                        }
                     ]
-                }
+                };
             }
             const data = await ListService.getAllRecord(filter, parseInt(req.query.page) || 1, parseInt(req.query.limit) || 10);
             const totalUsers = await ListService.getAllRecord({ ...filter, countOnly: true });
@@ -240,15 +263,21 @@ const ListController = {
     autocomplete: async (req, res) => {
         logger.info(Message.LOG_START+' - '+Message.LIST_CONTROLLER+Message.GET_ALL_RECORD_ATTEMPT);
         try {
-            let filter = {};
+            const ownerFilter = { userId: new ObjectId(req.userId) };
+            let filter = { ...ownerFilter };
             if (req.query.search) {
                filter = {
-                    $or: [
-                        { name: { $regex: req.query.search, $options: 'i' } },
-                        { description: { $regex: req.query.search, $options: 'i' } },
-                        { type: { $regex: req.query.search, $options: 'i' } },
+                    $and: [
+                        ownerFilter,
+                        {
+                            $or: [
+                                { name: { $regex: req.query.search, $options: 'i' } },
+                                { description: { $regex: req.query.search, $options: 'i' } },
+                                { type: { $regex: req.query.search, $options: 'i' } },
+                            ]
+                        }
                     ]
-                }
+                };
             }
             let format = {
                     _id: 1,

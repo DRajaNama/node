@@ -1,6 +1,10 @@
 const TemplateService = require('../services/template.services');
 const { templateCreateValidation, templateUpdateValidation } = require('../validations/template.validations');
 const { getBlankTemplate } = require('../utils/template.utils');
+const EntitlementService = require('../services/entitlement.services');
+const PredefinedTemplate = require('../models/predefinedTemplate.model');
+const { handleQuotaError } = require('../middleware/quota.middleware');
+const QuotaExceededError = require('../helpers/quotaError');
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
 const fs = require('fs').promises;
@@ -20,9 +24,32 @@ const TemplateController = {
             }
             let templateData = req.body;
             templateData.userId = req.userId;
-            templateData.defaultTemplateId = null;
-            templateData.status = 'draft';
-            templateData.html = getBlankTemplate(templateData).html;
+
+            const rawPredefinedId =
+              templateData.defaultTemplateId ||
+              templateData.predefinedTemplateId ||
+              (templateData.templateId && templateData.templateId !== 'blank' ? templateData.templateId : null);
+
+            let predefined = null;
+            if (rawPredefinedId) {
+              predefined = await PredefinedTemplate.findById(rawPredefinedId);
+            }
+
+            if (predefined) {
+              templateData.html = predefined.html;
+              templateData.defaultTemplateId = predefined._id;
+              templateData.predefinedTemplateVersion = predefined.version || 1;
+              templateData.thumb = predefined.thumb || 'template.png';
+              await PredefinedTemplate.findByIdAndUpdate(predefined._id, { $inc: { useCount: 1 } });
+            } else {
+              await EntitlementService.checkLimit(req.userId, 'custom_email_templates', 1);
+              templateData.defaultTemplateId = null;
+              templateData.predefinedTemplateVersion = null;
+              templateData.status = 'draft';
+              templateData.html = getBlankTemplate(templateData).html;
+            }
+
+            if (!templateData.status) templateData.status = 'draft';
             const template = await TemplateService.createTemplate(templateData);
 
             logger.info(Message.LOG_END+' - '+Message.TEMPLATE_CONTROLLER+Message.CREATE_ATTEMPT+Message.SUCCESS, {
@@ -32,6 +59,9 @@ const TemplateController = {
             res.send({ data: template, message: Message.SUCCESS });
 
         } catch (error) {
+            if (error instanceof QuotaExceededError) {
+                return handleQuotaError(res, error);
+            }
             logger.error(Message.LOG_END+' - '+Message.TEMPLATE_CONTROLLER+Message.ERROR_IN+Message.CREATE_ATTEMPT, error);
             res.status(500).send({ data: null, message: Message.SERVER_ERROR });
         }
@@ -50,6 +80,9 @@ const TemplateController = {
 
             if (!template) {
                 return res.status(404).send({ data: null, message: Message.NOT_FOUND });
+            }
+            if (template.userId.toString() !== req.userId) {
+                return res.status(403).send({ data: null, message: 'Access denied' });
             }
 
             logger.info(Message.LOG_END+' - '+Message.TEMPLATE_CONTROLLER+Message.FETCHING_INFO+Message.SUCCESS);
@@ -84,6 +117,9 @@ const TemplateController = {
             if (!template) {
                 return res.status(404).send({ data: null, message: Message.NOT_FOUND });
             }
+            if (template.userId.toString() !== req.userId) {
+                return res.status(403).send({ data: null, message: 'Access denied' });
+            }
             // HANDLE FILE UPLOAD
             if (req.file) {
             req.body.thumb = req.file.filename; // save only filename
@@ -117,6 +153,9 @@ const TemplateController = {
             if (!template) {
                 return res.status(404).send({ data: null, message: Message.NOT_FOUND });
             }
+            if (template.userId.toString() !== req.userId) {
+                return res.status(403).send({ data: null, message: 'Access denied' });
+            }
 
             if(template.thumb){
                  const filePath = path.join(__dirname, '..', 'uploads', 'templates', template.thumb);
@@ -148,13 +187,19 @@ const TemplateController = {
 
         try {
 
-            let filter = {};
+            const ownerFilter = { userId: req.userId };
+            let filter = { ...ownerFilter };
             if (req.query.search) {
                filter = {
-                    $or: [
-                        { title: { $regex: req.query.search, $options: 'i' } },
+                    $and: [
+                        ownerFilter,
+                        {
+                            $or: [
+                                { title: { $regex: req.query.search, $options: 'i' } },
+                            ]
+                        }
                     ]
-                }
+                };
             }
            
             const page = parseInt(req.query.page) || 1;
@@ -184,15 +229,21 @@ const TemplateController = {
     autocomplete: async (req, res) => {
         logger.info(Message.LOG_START+' - '+Message.TEMPLATE_CONTROLLER+Message.GET_ALL_RECORD_ATTEMPT);
         try {
-            let filter = {};
+            const ownerFilter = { userId: req.userId };
+            let filter = { ...ownerFilter };
             if (req.query.search) {
                filter = {
-                    $or: [
-                        { title: { $regex: req.query.search, $options: 'i' } },
-                        { description: { $regex: req.query.search, $options: 'i' } },
-                        { type: { $regex: req.query.search, $options: 'i' } },
+                    $and: [
+                        ownerFilter,
+                        {
+                            $or: [
+                                { title: { $regex: req.query.search, $options: 'i' } },
+                                { description: { $regex: req.query.search, $options: 'i' } },
+                                { type: { $regex: req.query.search, $options: 'i' } },
+                            ]
+                        }
                     ]
-                }
+                };
             }
             let format = {
                     _id: 1,

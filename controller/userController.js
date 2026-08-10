@@ -76,6 +76,9 @@ const UserController = {
                 logger.error(Message.LOG_END+' - '+Message.USER_CONTROLLER+Message.ERROR_IN+Message.DELETE_USER_ATTEMPT, { userId: req.params.id });
                 return res.status(404).send({data: null, message: Message.USER_NOT_FOUND});
             }
+            if (user._id.toString() === req.userId) {
+                return res.status(400).send({ data: null, message: 'You cannot delete your own account.' });
+            }
             await UserService.deleteUser(user._id);
             logger.info(Message.LOG_END+' - '+Message.USER_CONTROLLER+Message.DELETE_USER_ATTEMPT+Message.SUCCESS, { userId: req.params.id });
             res.send({ data: null, message: Message.USER_DELETED });
@@ -96,7 +99,11 @@ const UserController = {
                 logger.error(Message.LOG_END+' - '+Message.USER_CONTROLLER+Message.ERROR_IN+Message.UPDATE_USER_ATTEMPT, { userId: req.params.id });
                 return res.status(404).send({data: null, message: Message.USER_NOT_FOUND});
             }
-            Object.assign(user, req.body);
+            const { password, ...updateData } = req.body;
+            if (password && password.trim()) {
+                updateData.password = password;
+            }
+            Object.assign(user, updateData);
             await user.save();
             logger.info(Message.LOG_END+' - '+Message.USER_CONTROLLER+Message.UPDATE_USER_ATTEMPT+Message.SUCCESS, { userId: req.params.id });
             res.send({ data: user, message: Message.USER_UPDATED });
@@ -112,17 +119,29 @@ const UserController = {
             if (req.query.role) {
                 filter.role = req.query.role;
             }
-            if (req.query.email) {
-                filter.email = req.query.email;
+            if (req.query.isVerified !== undefined) {
+                filter.isVerified = req.query.isVerified === 'true';
             }
-            if (req.query.name) {
-                filter.name = { $regex: req.query.name, $options: 'i' };
-            }   
-            
-            const users = await UserService.getAllUsers(filter, parseInt(req.query.page) || 1, parseInt(req.query.limit) || 10);
+            if (req.query.isActive !== undefined) {
+                filter.isActive = req.query.isActive === 'true';
+            }
+            if (req.query.search) {
+                filter.$or = [
+                    { name: { $regex: req.query.search, $options: 'i' } },
+                    { email: { $regex: req.query.search, $options: 'i' } },
+                    { mobile: { $regex: req.query.search, $options: 'i' } },
+                ];
+            }
+            const sortField = req.query.sort || 'createdAt';
+            const sortDir = req.query.sortDir === 'asc' ? 1 : -1;
+            const sort = { [sortField]: sortDir };
+
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 10;
+            const users = await UserService.getAllUsers(filter, page, limit, sort);
             const totalUsers = await UserService.getAllUsers({ ...filter, countOnly: true });
             logger.info(Message.LOG_END+' - '+Message.USER_CONTROLLER+Message.GET_ALL_USERS_ATTEMPT+Message.SUCCESS);
-            res.send({ data: users, message: Message.SUCCESS, meta: { page: parseInt(req.query.page) || 1, limit: parseInt(req.query.limit) || 10, total: totalUsers } });
+            res.send({ data: users, message: Message.SUCCESS, meta: { page, limit, total: totalUsers } });
         } catch (error) {
             logger.error(Message.LOG_END+' - '+Message.USER_CONTROLLER+Message.GET_ALL_USERS_ATTEMPT+Message.ERROR_IN, error);
             res.status(500).send({data: null, message: Message.SERVER_ERROR});

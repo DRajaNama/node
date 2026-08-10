@@ -1,6 +1,10 @@
 const LandingPageService = require('../services/landingPage.services');
 const FormPopupService = require('../services/formPopup.services');
 const LeadService = require('../services/lead.services');
+const EntitlementService = require('../services/entitlement.services');
+const { handleQuotaError } = require('../middleware/quota.middleware');
+const QuotaExceededError = require('../helpers/quotaError');
+const BlogPost = require('../models/blogPost.model');
 const { leadSubmitValidation } = require('../validations/lead.validations');
 const { preparePublishHtml } = require('../helpers/landingPage.helper');
 const Message = require('../helpers/constant.message');
@@ -104,6 +108,8 @@ const PublicController = {
         return res.status(400).send({ data: null, message: Message.DATA_NOT_FOUND });
       }
 
+      await EntitlementService.checkLimit(userId, 'contacts', 1);
+
       const leadData = {
         userId,
         landingPageId: landingPage?._id || null,
@@ -132,7 +138,59 @@ const PublicController = {
 
       res.send({ data: { _id: record._id }, message: 'Thank you! Your information has been submitted.' });
     } catch (error) {
+      if (error instanceof QuotaExceededError) {
+        return handleQuotaError(res, error);
+      }
       logger.error(Message.LOG_END + ' - PublicController SubmitLead error', error);
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
+  getBlogPosts: async (req, res) => {
+    try {
+      const page = parseInt(req.query.page, 10) || 1;
+      const limit = parseInt(req.query.limit, 10) || 10;
+      const filter = { status: 'published' };
+      const data = await BlogPost.find(filter)
+        .sort({ publishedAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .populate('categoryId', 'name slug')
+        .select('-content');
+      const total = await BlogPost.countDocuments(filter);
+      res.send({ data, message: Message.SUCCESS, meta: { page, limit, total } });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
+  getBlogPost: async (req, res) => {
+    try {
+      const post = await BlogPost.findOne({ slug: req.params.slug, status: 'published' })
+        .populate('categoryId', 'name slug')
+        .populate('authorId', 'name');
+      if (!post) return res.status(404).send({ data: null, message: Message.DATA_NOT_FOUND });
+      res.send({ data: post, message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
+  getPublicPlans: async (req, res) => {
+    try {
+      const PlanService = require('../services/plan.services');
+      const data = await PlanService.listPublicPlans();
+      res.send({ data, message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
+  getPublicEntitlementRegistry: async (req, res) => {
+    try {
+      const EntitlementService = require('../services/entitlement.services');
+      res.send({ data: EntitlementService.getRegistry(), message: Message.SUCCESS });
+    } catch (error) {
       res.status(500).send({ data: null, message: Message.SERVER_ERROR });
     }
   },

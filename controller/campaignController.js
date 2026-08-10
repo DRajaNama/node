@@ -167,6 +167,11 @@ const CampaignController = {
             logEnd(Message.SEND_CAMPAIGN_ATTEMPT, { campaignId: req.params.id });
             res.send({ data: record, message: Message.CAMPAIGN_SEND_SUCCESS });
         } catch (error) {
+            const QuotaExceededError = require('../helpers/quotaError');
+            const { handleQuotaError } = require('../middleware/quota.middleware');
+            if (error instanceof QuotaExceededError) {
+                return handleQuotaError(res, error);
+            }
             handleServerError(res, Message.SEND_CAMPAIGN_ATTEMPT, error);
         }
     },

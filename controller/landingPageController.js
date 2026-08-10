@@ -8,6 +8,9 @@ const {
 } = require('../validations/landingPage.validations');
 const { LANDING_PAGE_STATUS } = require('../constants/landingPage.constants');
 const { getBlankLandingPageHtml } = require('../utils/landingPage.utils');
+const EntitlementService = require('../services/entitlement.services');
+const { handleQuotaError } = require('../middleware/quota.middleware');
+const QuotaExceededError = require('../helpers/quotaError');
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
 const fs = require('fs').promises;
@@ -34,6 +37,7 @@ const LandingPageController = {
       if (!isValid) {
         return res.status(400).send({ errors });
       }
+      await EntitlementService.checkLimit(req.userId, 'custom_landing_pages', 1);
       const data = {
         userId: req.userId,
         name: req.body.name.trim(),
@@ -46,6 +50,9 @@ const LandingPageController = {
       const record = await LandingPageService.createRecord(data);
       res.send({ data: record, message: Message.RECORD_CREATED });
     } catch (error) {
+      if (error instanceof QuotaExceededError) {
+        return handleQuotaError(res, error);
+      }
       if (error.code === 11000) {
         return res.status(400).send({ data: null, message: Message.DUPLICATE_RECORD });
       }

@@ -5,6 +5,7 @@ const emailQueue = require('../queues/email.queue');
 const CampaignService = require('./campaign.services');
 const { CAMPAIGN_STATUS, SENDABLE_STATUSES, RECIPIENT_STATUS } = require('../constants/campaign.constants');
 const SettingsService = require('./setting.services');
+const EntitlementService = require('./entitlement.services');
 const { ObjectId } = require('mongodb');
 
 const CampaignSendService = {
@@ -69,6 +70,8 @@ const CampaignSendService = {
             throw new Error(Message.DATA_NOT_FOUND);
         }
 
+        await EntitlementService.checkEmailSendQuota(userId, contacts.length);
+
         const recipientDocs = contacts.map((contact) => ({
             campaignId: campaign._id,
             userId: userId,
@@ -123,6 +126,8 @@ const CampaignSendService = {
         }
         
         await emailQueue.addBulk(queueJobs);
+
+        await EntitlementService.recordEmailSends(userId, insertedRecipients.length);
 
         // campaign.status = CAMPAIGN_STATUS.SENDING;
         campaign.stats.total = insertedRecipients.length;

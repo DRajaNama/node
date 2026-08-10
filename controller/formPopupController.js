@@ -4,6 +4,9 @@ const {
   formPopupUpdateValidation,
 } = require('../validations/formPopup.validations');
 const { getBlankFormPopupHtml } = require('../utils/landingPage.utils');
+const EntitlementService = require('../services/entitlement.services');
+const { handleQuotaError } = require('../middleware/quota.middleware');
+const QuotaExceededError = require('../helpers/quotaError');
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
 const fs = require('fs').promises;
@@ -29,6 +32,7 @@ const FormPopupController = {
       if (!isValid) {
         return res.status(400).send({ errors });
       }
+      await EntitlementService.checkLimit(req.userId, 'lead_capture_forms', 1);
       const data = {
         userId: req.userId,
         name: req.body.name.trim(),
@@ -39,6 +43,9 @@ const FormPopupController = {
       const record = await FormPopupService.createRecord(data);
       res.send({ data: record, message: Message.RECORD_CREATED });
     } catch (error) {
+      if (error instanceof QuotaExceededError) {
+        return handleQuotaError(res, error);
+      }
       logger.error(Message.LOG_END + ' - FormPopupController Create error', error);
       res.status(500).send({ data: null, message: Message.SERVER_ERROR });
     }

@@ -42,6 +42,18 @@ const AuthContoller = {
             // take 10 second delay then after create user
             await new Promise(resolve => setTimeout(resolve, 10000));
             const user = await UserService.createUser(req.body);
+            try {
+                const Plan = require('../models/plan.model');
+                const PlanService = require('../services/plan.services');
+                const SubscriptionService = require('../services/subscription.services');
+                await PlanService.seedDefaultPlansIfEmpty();
+                const defaultPlan = await Plan.findOne({ status: 'active', isPublic: true }).sort({ displayOrder: 1 });
+                if (defaultPlan) {
+                    await SubscriptionService.assignPlanToUser(user._id, defaultPlan._id, 'trial');
+                }
+            } catch (subErr) {
+                logger.error('Failed to assign default plan on registration', subErr);
+            }
             logger.info(Message.LOG_END+' - '+Message.AUTH_CONTROLLER+Message.REGISTRATION_ATTEMPT+Message.SUCCESS, { userId: user._id });
             res.send({ data: user, message: Message.USER_CREATED });
         } catch (error) {

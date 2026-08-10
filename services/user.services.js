@@ -38,14 +38,14 @@ const UserService = {
             throw error;
         }
     },
-    getAllUsers: async (filter,page = 1, limit = 10) => {
+    getAllUsers: async (filter,page = 1, limit = 10, sort = '-createdAt') => {
         try {
             const countOnly = filter.countOnly;
             delete filter.countOnly;
             if (countOnly) {
                 return await User.countDocuments(filter);
             }
-            return await User.find(filter).skip((page - 1) * limit).limit(limit);
+            return await User.find(filter).sort(sort).skip((page - 1) * limit).limit(limit);
         } catch (error) {
             throw error;
         }

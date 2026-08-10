@@ -7,7 +7,7 @@ const adminMiddleware = async (req, res, next) => {
             return res.status(401).json({ data: null, message: Message.NO_TOKEN_PROVIDED });
         }
         const user = await UserService.findUserById(req.userId);
-        if (!user || user.role !== 'admin') {
+        if (!user || !['admin', 'super_admin'].includes(user.role)) {
             return res.status(403).json({ data: null, message: Message.ADMIN_ONLY });
         }
         next();

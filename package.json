@@ -7,7 +7,7 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "test": "node --test tests/landingPagePublish.test.js"
+    "test": "node --test tests/landingPagePublish.test.js tests/entitlements.test.js tests/predefinedTemplates.test.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

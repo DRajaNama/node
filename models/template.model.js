@@ -14,9 +14,10 @@ const userTemplateSchema = new mongoose.Schema(
     },
     defaultTemplateId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "DefaultTemplate",
+      ref: "PredefinedTemplate",
       default: null,
     },
+    predefinedTemplateVersion: { type: Number, default: null },
     title: {
       type: String,
       required: true,
