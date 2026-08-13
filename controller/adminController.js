@@ -131,6 +131,15 @@ const AdminController = {
     }
   },
 
+  getContactStats: async (req, res) => {
+    try {
+      const data = await AdminService.getContactStats();
+      res.send({ data, message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
   getLogStats: async (req, res) => {
     try {
       const data = await AdminService.getLogStats();
@@ -193,8 +202,30 @@ const AdminController = {
   listCampaigns: (req, res) =>
     listHandler(req, res, AdminService.listCampaigns, ['name', 'subject', 'fromEmail'], 'campaigns'),
 
-  listTemplates: (req, res) =>
-    listHandler(req, res, AdminService.listTemplates, ['title', 'description'], 'templates'),
+  listTemplates: async (req, res) => {
+    try {
+      const { page, limit } = parsePage(req.query);
+      let filter = {};
+      if (req.query.search) {
+        filter = AdminService.buildResourceFilter(req.query.search, ['title', 'description']);
+      }
+      if (req.query.status) filter.status = req.query.status;
+      if (req.query.type) {
+        const PredefinedTemplate = require('../models/predefinedTemplate.model');
+        const ids = await PredefinedTemplate.find({ type: req.query.type }).distinct('_id');
+        const typeClause = req.query.type === 'email'
+          ? { $or: [{ defaultTemplateId: { $in: ids } }, { defaultTemplateId: null }] }
+          : { defaultTemplateId: { $in: ids } };
+        filter = Object.keys(filter).length ? { $and: [filter, typeClause] } : typeClause;
+      }
+      const data = await AdminService.listTemplates(filter, page, limit);
+      const total = await AdminService.listTemplates({ ...filter, countOnly: true }, page, limit);
+      res.send({ data, message: Message.SUCCESS, meta: { page, limit, total } });
+    } catch (error) {
+      logger.error('Admin list templates error', error);
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
 
   listContacts: (req, res) =>
     listHandler(req, res, AdminService.listContacts, ['firstName', 'lastName', 'email', 'mobile'], 'contacts'),
@@ -430,6 +461,19 @@ const AdminController = {
     }
   },
 
+  uploadBrandingAsset: async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).send({ data: null, message: 'No file uploaded.' });
+      }
+      const kind = req.body.kind === 'favicon' ? 'favicon' : 'logo';
+      const url = `/uploads/branding/${req.file.filename}`;
+      res.send({ data: { url, kind }, message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
   testSystemSmtp: async (req, res) => {
     try {
       const data = await AdminService.testSystemSmtp();
@@ -542,9 +586,27 @@ const AdminController = {
   listAuditLogs: async (req, res) => {
     try {
       const { page, limit } = parsePage(req.query);
-      const filter = {};
-      if (req.query.action) filter.action = { $regex: req.query.action, $options: 'i' };
-      if (req.query.resource) filter.resource = req.query.resource;
+      const clauses = [];
+      const search = String(req.query.search || '').trim();
+      if (search) {
+        const rx = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+        clauses.push({ $or: [{ action: rx }, { resource: rx }, { resourceId: rx }, { ip: rx }] });
+      }
+      if (req.query.action) {
+        clauses.push({ action: { $regex: String(req.query.action), $options: 'i' } });
+      }
+      if (req.query.resource && req.query.resource !== 'all') {
+        const resource = String(req.query.resource).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        clauses.push({ resource: { $regex: `^${resource}$`, $options: 'i' } });
+      }
+      if (req.query.type === 'errors') {
+        clauses.push({ action: { $regex: /error|fail/i } });
+      } else if (req.query.type === 'warnings') {
+        clauses.push({ action: { $regex: /warn/i } });
+      } else if (req.query.type === 'success') {
+        clauses.push({ action: { $regex: /success|created|updated/i } });
+      }
+      const filter = clauses.length ? { $and: clauses } : {};
       const data = await AuditLogService.list(filter, page, limit);
       const total = await AuditLogService.list({ ...filter, countOnly: true }, page, limit);
       res.send({ data, message: Message.SUCCESS, meta: { page, limit, total } });

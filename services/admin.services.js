@@ -191,6 +191,17 @@ const AdminService = {
     };
   },
 
+  getContactStats: async () => {
+    const [total, active, inactive, bounced, unsubscribed] = await Promise.all([
+      Contact.countDocuments(),
+      Contact.countDocuments({ status: 'active' }),
+      Contact.countDocuments({ status: 'inactive' }),
+      Contact.countDocuments({ status: 'bounced' }),
+      Contact.countDocuments({ status: 'unsubscribed' }),
+    ]);
+    return { total, active, inactive, bounced, unsubscribed };
+  },
+
   getLogStats: async () => {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -246,8 +257,17 @@ const AdminService = {
   listCampaigns: (filter, page, limit) =>
     paginate(Campaign, filter, page, limit, { createdAt: -1 }, 'userId'),
 
-  listTemplates: (filter, page, limit) =>
-    paginate(Template, filter, page, limit, { createdAt: -1 }, 'userId'),
+  listTemplates: async (filter, page, limit) => {
+    const countOnly = filter.countOnly;
+    delete filter.countOnly;
+    if (countOnly) return Template.countDocuments(filter);
+    return Template.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate('userId', 'name email')
+      .populate('defaultTemplateId', 'type name');
+  },
 
   listContacts: (filter, page, limit) =>
     paginate(Contact, filter, page, limit, { createdAt: -1 }, 'userId'),
@@ -388,13 +408,28 @@ const AdminService = {
     const settings = await SystemSettings.findOne({ key: 'global' });
     const general = settings?.general || {};
     const seo = settings?.seo || {};
+    const social = settings?.social || {};
     return {
       companyName: general.siteName || 'App',
+      siteName: general.siteName || 'App',
+      siteDescription: general.siteDescription || '',
       logoUrl: general.logo || '',
       faviconUrl: general.favicon || '',
-      siteName: general.siteName || 'App',
       seoTitle: seo.defaultTitle || '',
       seoDescription: seo.metaDescription || '',
+      keywords: seo.keywords || '',
+      robots: seo.robots || 'index,follow',
+      canonicalUrl: seo.canonicalUrl || '',
+      ogTitle: seo.ogTitle || '',
+      ogDescription: seo.ogDescription || '',
+      ogImage: seo.ogImage || '',
+      twitterCard: seo.twitterCard || 'summary_large_image',
+      social: {
+        facebook: social.facebook || '',
+        twitter: social.twitter || '',
+        linkedin: social.linkedin || '',
+        instagram: social.instagram || '',
+      },
     };
   },
 

@@ -23,6 +23,7 @@ router.post('/users/:id/verify-email', withPerm(PERMISSIONS.USERS_EDIT), AdminCo
 router.get('/campaigns', withPerm(PERMISSIONS.MARKETING_VIEW), AdminController.listCampaigns);
 router.get('/campaigns/stats', withPerm(PERMISSIONS.MARKETING_VIEW), AdminController.getCampaignStats);
 router.get('/templates', withPerm(PERMISSIONS.MARKETING_VIEW), AdminController.listTemplates);
+router.get('/contacts/stats', withPerm(PERMISSIONS.MARKETING_VIEW), AdminController.getContactStats);
 router.get('/contacts', withPerm(PERMISSIONS.MARKETING_VIEW), AdminController.listContacts);
 router.get('/landing-pages', withPerm(PERMISSIONS.MARKETING_VIEW), AdminController.listLandingPages);
 router.get('/leads', withPerm(PERMISSIONS.MARKETING_VIEW), AdminController.listLeads);
@@ -55,6 +56,12 @@ router.delete('/coupons/:id', withPerm(PERMISSIONS.PLANS_MANAGE), AdminControlle
 
 router.get('/settings', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.getSystemSettings);
 router.put('/settings', withPerm(PERMISSIONS.SETTINGS_MANAGE), AdminController.updateSystemSettings);
+router.post(
+  '/settings/upload',
+  withPerm(PERMISSIONS.SETTINGS_MANAGE),
+  require('../middleware/branding.upload.middleware').single('file'),
+  AdminController.uploadBrandingAsset
+);
 router.get('/settings/test-smtp', withPerm(PERMISSIONS.SETTINGS_MANAGE), AdminController.testSystemSmtp);
 router.get('/settings/theme', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.getThemeSettings);
 router.put('/settings/theme', admin, superAdminMiddleware, AdminController.updateThemeSettings);
