@@ -5,88 +5,41 @@ const prepareEmailHtml = (html) => {
         decodeEntities: false
     });
 
+    const $container = $(".ve-email-container").first();
 
-    // remove editor generated elements
-    $("[id^='editor-element']").each((index, el) => {
+    if (!$container.length) {
+        throw new Error("Email container not found");
+    }
+
+    $("body").find(".editor-element").each((index, el) => {
 
         const $el = $(el);
 
-        // get all children, keep content
-        const children = $el.contents();
-
-        // remove editor attributes
-        children.each((i, child) => {
-
-            if (child.type === "tag") {
-
-                $(child)
-                    .removeAttr("id")
-                    .removeAttr("contenteditable")
-                    .removeClass(
-                        "editor-element editable-text ui-draggable-handle ui-droppable ui-draggable ui-resizable selected"
-                    );
-
+        // Don't touch the main email container
+            if ($el.is(".ve-email-container")) {
+                return;
             }
 
+            // If this editor element is outside the email container
+            if (!$el.closest(".ve-email-container").length) {
+                $el.remove();
+            }
         });
-
-
-        // replace editor div with its inner HTML
-        $el.replaceWith(children);
-
-    });
-
-
-    // remove empty paragraphs
-    $("p").each((i, p) => {
-
-        if ($(p).text().trim() === "" && $(p).children().length === 0) {
-            $(p).remove();
-        }
-
-    });
-
-
-    // remove absolute positioning styles
-    $("[style]").each((i, el) => {
-
-        let style = $(el).attr("style");
-
-        style = style
-            .replace(/position\s*:\s*absolute;?/gi, "")
-            .replace(/left\s*:[^;]+;?/gi, "")
-            .replace(/top\s*:[^;]+;?/gi, "")
-            .replace(/z-index\s*:[^;]+;?/gi, "")
-            .replace(/outline\s*:[^;]+;?/gi, "")
-            .trim();
-
-
-        if(style){
-            $(el).attr("style", style);
-        }
-        else{
-            $(el).removeAttr("style");
-        }
-
-    });
-
-    $("table").each((i, table) => {
-
-        const $table = $(table);
-
-        const meaningfulContent = $table
-            .find("img, h1, h2, h3, h4, h5, h6, p")
-            .filter(function () {
-                return $(this).text().trim() !== "";
-            })
-            .length;
-
-
-        if (meaningfulContent === 0) {
-            $table.remove();
-        }
-
-    });
+    $(".editor-element, .editable-text, .ui-droppable, .ui-draggable, .ui-draggable-handle, .ui-resizable, .selected")
+        .removeClass(
+            "editor-element " +
+            "editable-text " +
+            "ui-droppable " +
+            "ui-draggable " +
+            "ui-draggable-handle " +
+            "ui-resizable " +
+            "selected"
+        );
+    $("[data-type]").removeAttr("data-type");
+    $("[data-resize]").removeAttr("data-resize");
+    $("[data-drag]").removeAttr("data-drag");
+    $("[contenteditable]").removeAttr("contenteditable");
+    $("[tabindex]").removeAttr("tabindex");
 
     return $.html();
 }
@@ -94,14 +47,14 @@ const prepareEmailHtml = (html) => {
 const replaceTemplateVariables = (html, data) => {
     try {
         let content = prepareEmailHtml(html);
-        Object.keys(data).forEach((key)=>{
+        Object.keys(data).forEach((key) => {
             const regex = new RegExp(
-                `{{${key}}}`,
+                `\\[\\[${key}\\]\\]`, 
                 "g"
             );
             content = content.replace(
                 regex,
-                data[key] || ""
+                data[key] ?? ""
             );
         });
         return content;
@@ -110,6 +63,41 @@ const replaceTemplateVariables = (html, data) => {
     }
 };
 
+const cleanEmailHtml = (html) => {
+    const $ = cheerio.load(html, {
+        decodeEntities: false
+    });
+    $("[class]").each((i, el) => {
+        const $el = $(el);
+
+        const classes = ($el.attr("class") || "")
+            .split(/\s+/)
+            .filter(Boolean)
+            .filter(className => ![
+                "editor-element",
+                "editable-text",
+                "ui-droppable",
+                "ui-draggable",
+                "ui-draggable-handle",
+                "ui-resizable",
+                "selected"
+            ].includes(className));
+
+        if (classes.length) {
+            $el.attr("class", classes.join(" "));
+        } else {
+            $el.removeAttr("class");
+        }
+    });
+
+    $("[contenteditable]").removeAttr("contenteditable");
+    $("[data-type]").removeAttr("data-type");
+    $("[data-resize]").removeAttr("data-resize");
+    $("[data-drag]").removeAttr("data-drag");
+    $("[tabindex]").removeAttr("tabindex");
+    return $.html();
+};
 module.exports = {
-    replaceTemplateVariables
+    replaceTemplateVariables,
+    cleanEmailHtml
 };

@@ -14,7 +14,6 @@ const Message = require('../helpers/constant.message');
 
 
 const sendEmail = async(data,smtp=null)=>{
-    console.log('sendmail',smtp)
     try {
         if(smtp){
             transporter = nodemailer.createTransport({

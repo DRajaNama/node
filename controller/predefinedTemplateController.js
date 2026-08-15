@@ -4,7 +4,6 @@ const Message = require('../helpers/constant.message');
 const PredefinedTemplateController = {
   list: async (req, res) => {
     try {
-      await PredefinedTemplateService.seedDefaultTemplatesIfEmpty();
       const { data, total } = await PredefinedTemplateService.listForCustomer(req.userId, req.query);
       const page = parseInt(req.query.page, 10) || 1;
       const limit = parseInt(req.query.limit, 10) || 50;

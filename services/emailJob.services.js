@@ -1,7 +1,7 @@
 const Campaign = require('../models/campaign.model');
 const Template = require('../models/template.model');
 const sendEmail = require('../helpers/email.provider');
-const { replaceTemplateVariables } = require('../helpers/template.helper');
+const { replaceTemplateVariables, cleanEmailHtml } = require('../helpers/template.helper');
 const CampaignService = require('./campaign.services');
 const { CAMPAIGN_STATUS, RECIPIENT_STATUS } = require('../constants/campaign.constants');
 const SettingsService = require('./setting.services');
@@ -42,11 +42,11 @@ const processEmailJob = async (data) => {
         throw new Error('Template not found');
     }
 
-    const html = replaceTemplateVariables(template.html, {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        trackingToken: data.trackingToken
+    let html = replaceTemplateVariables(template.html, {
+        NAME: data.firstName + data.lastName || '',
+        TRACKTOKEN : data.trackingToken
     });
+    html = cleanEmailHtml(html);
 
     await CampaignService.updateRecipientStatus(data.recipientId, {
         status: RECIPIENT_STATUS.SENDING
