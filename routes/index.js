@@ -22,5 +22,6 @@ router.use(require("./predefinedTemplateRoute"));
 router.use("/admin", require("./adminRoute"));
 router.use(require("./subscriptionRoute"));
 router.use(require("./publicRoute"));
+router.use(require('./whatsapp.routes'));
 
 module.exports = router;
