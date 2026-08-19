@@ -99,5 +99,6 @@ const cleanEmailHtml = (html) => {
 };
 module.exports = {
     replaceTemplateVariables,
-    cleanEmailHtml
+    cleanEmailHtml,
+    prepareEmailHtml
 };

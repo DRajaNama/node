@@ -2,6 +2,7 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const routeIndex = require('./routes/index');
+const path = require("path");
 
 function createApp() {
   const app = express();
@@ -21,6 +22,7 @@ function createApp() {
       credentials: true,
     })
   );
+  app.use("/widgets",express.static(path.join(__dirname, "widgets")));
 
   app.get('/health', (req, res) => {
     res.send('OK');

@@ -6,7 +6,7 @@ const { handleQuotaError } = require('../middleware/quota.middleware');
 const QuotaExceededError = require('../helpers/quotaError');
 const BlogPost = require('../models/blogPost.model');
 const { leadSubmitValidation } = require('../validations/lead.validations');
-const { preparePublishHtml } = require('../helpers/landingPage.helper');
+// const { preparePublishHtml } = require('../helpers/landingPage.helper');
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
 
@@ -33,7 +33,7 @@ const PublicController = {
         return res.status(404).send({ data: null, message: Message.DATA_NOT_FOUND });
       }
       await LandingPageService.incrementViews(record._id);
-      const html = preparePublishHtml(record.html);
+      const html = record.html;
       const seo = record.seo?.toObject?.() || record.seo || {};
       res.send({
         data: {
@@ -60,7 +60,7 @@ const PublicController = {
       if (!record) {
         return res.status(404).send({ data: null, message: Message.DATA_NOT_FOUND });
       }
-      const html = preparePublishHtml(record.html);
+      const html = record.html;
       res.send({
         data: {
           _id: record._id,
