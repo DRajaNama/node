@@ -1,17 +1,33 @@
-const Message = require('../helpers/constant.message');
-const logger = require('../helpers/logging');
+const Message = require("../helpers/constant.message");
+const logger = require("../helpers/logging");
 
 const validatePayload = (req, res, next) => {
-    const body = req.body;
+    console.log('req',req)
+    const body = req.body || {};
     const file = req.file;
+    const files = req.files;
 
-    // check everything is empty (body + file)
-    const isBodyEmpty = !body || Object.keys(body).length === 0;
-    const isFileMissing = !file;
+    const hasBody =
+        Object.keys(body).length > 0;
 
-    if (isBodyEmpty && isFileMissing) {
+    const hasSingleFile =
+        !!file;
+
+    const hasMultipleFiles =
+        Array.isArray(files) &&
+        files.length > 0;
+
+    const hasFields =
+        hasBody ||
+        hasSingleFile ||
+        hasMultipleFiles;
+
+    if (!hasFields) {
         logger.error(Message.EMPTY_FIELD);
-        return res.status(400).json({ error: Message.EMPTY_FIELD }); // {"error":"Field cannot be empty"}
+
+        return res.status(400).json({
+            error: Message.EMPTY_FIELD
+        });
     }
 
     next();
