@@ -45,7 +45,7 @@ const TemplateController = {
               templateData.defaultTemplateId = null;
               templateData.predefinedTemplateVersion = null;
               templateData.status = 'draft';
-              templateData.html = getBlankTemplate(templateData).html;
+              templateData.html = templateData.html || getBlankTemplate(templateData).html;
             }
 
             if (!templateData.status) templateData.status = 'draft';

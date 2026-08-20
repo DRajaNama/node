@@ -36,7 +36,7 @@ const FormPopupController = {
         userId: req.userId,
         name: req.body.name.trim(),
         description: req.body.description || '',
-        html: getBlankFormPopupHtml(),
+        html: req.body.html || getBlankFormPopupHtml(),
         status: 'draft',
       };
       const record = await FormPopupService.createRecord(data);

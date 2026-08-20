@@ -42,7 +42,7 @@ const LandingPageController = {
         name: req.body.name.trim(),
         slug: req.body.slug.trim().toLowerCase(),
         description: req.body.description || '',
-        html: getBlankLandingPageHtml(),
+        html: req.body.html || getBlankLandingPageHtml(),
         status: 'draft',
         stats: { views: 0, leads: 0 },
       };
