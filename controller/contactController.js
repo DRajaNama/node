@@ -7,6 +7,7 @@ const QuotaExceededError = require('../helpers/quotaError');
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
 const { ObjectId } = require('mongodb');
+const fs = require('fs');
 
 const ContactController = {
     create: async (req, res) => {
@@ -167,10 +168,11 @@ const ContactController = {
                     return res.status(400).send({ data: null, message: Message.DATA_NOT_FOUND });
                 }
             }
-            // Parse CSV
-            const contacts = await ContactService.parseCSV(req.file.path);
-            await EntitlementService.checkLimit(req.userId, 'contacts', contacts.length);
-            const record = await ContactService.importContacts(contacts,req.userId,list?list[0]:null);
+            // Both operations stream from disk in bounded batches, so a CSV with
+            // up to 20 lakh rows does not occupy the Node process heap.
+            const totalRows = await ContactService.countCSVRows(req.file.path);
+            await EntitlementService.checkLimit(req.userId, 'contacts', totalRows);
+            const record = await ContactService.importCSV(req.file.path, req.userId, list ? list[0] : null);
             logger.info(Message.LOG_END+' - '+Message.CONTACT_CONTROLLER+Message.UPLOAD_FILE+Message.SUCCESS, { userId: req.userId });
             return res.send({ data: record,  message: Message.UPLOADED_CONTACT_SUCCESS });
         } catch (error) {
@@ -179,6 +181,11 @@ const ContactController = {
             }
             logger.error( Message.LOG_END+' - '+Message.CONTACT_CONTROLLER+Message.ERROR_IN+Message.UPLOAD_FILE, error );
             return res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+        } finally {
+            // Multer saves the upload to disk; remove it after every outcome.
+            if (req.file?.path) {
+                fs.promises.unlink(req.file.path).catch(() => {});
+            }
         }
     },
 };

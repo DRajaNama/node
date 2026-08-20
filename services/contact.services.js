@@ -6,6 +6,24 @@ const Message = require('../helpers/constant.message');
 const fs = require("fs");
 const csv = require("csv-parser");
 
+const IMPORT_BATCH_SIZE = 1000;
+const CONTACT_STATUSES = new Set(['active', 'inactive', 'bounced', 'unsubscribed']);
+
+const normaliseContact = (row) => {
+    const email = String(row.email || '').trim().toLowerCase();
+    const status = String(row.status || '').trim();
+    if (!email) return null;
+
+    return {
+        email,
+        firstName: row.firstName == null ? undefined : String(row.firstName).trim(),
+        lastName: row.lastName == null ? undefined : String(row.lastName).trim(),
+        mobile: row.mobile == null ? undefined : String(row.mobile).trim(),
+        address: row.address == null ? undefined : String(row.address).trim(),
+        status: CONTACT_STATUSES.has(status) ? status : undefined,
+    };
+};
+
 const ContactService = {
     createRecord: async (userData) => {
         try {
@@ -67,62 +85,90 @@ const ContactService = {
             throw error;
         }
     },
-    parseCSV: (filePath) => {
-        return new Promise((resolve, reject) => {
-            const contacts = [];
-            fs.createReadStream(filePath)
-                .pipe(csv())
-                .on("data", (row) => {
-                    contacts.push(row);
-                })
-                .on("end", () => {
-                    fs.unlinkSync(filePath); // Delete uploaded file
-                    resolve(contacts);
-                })
-                .on("error", (error) => {
-                    reject(error);
-                });
-        });
+    // Counts CSV rows without retaining them. This preserves the existing
+    // entitlement check while keeping memory bounded for multi-million imports.
+    countCSVRows: async (filePath) => {
+        let count = 0;
+        const parser = fs.createReadStream(filePath).pipe(csv({
+            mapHeaders: ({ header }) => header.replace(/^\uFEFF/, '').trim()
+        }));
+        for await (const _row of parser) count += 1;
+        return count;
     },
-    importContacts: async (contacts, userId, list = null) => {
-        try {
-            // Get emails from CSV
-            const emails = contacts.map(contact => contact.email);
-            // Find existing contacts for this user
-            const existingContacts = await Contact.find({
-                userId: userId,
-                email: { $in: emails }
-            }).select({ _id: 1, email: 1 });
+    importCSV: async (filePath, userId, list = null) => {
+        const summary = { processed: 0, inserted: 0, existing: 0, invalid: 0, duplicatesInFile: 0, addedToList: 0 };
+        const processBatch = async (rows) => {
+            const contactsByEmail = new Map();
+            for (const row of rows) {
+                summary.processed += 1;
+                const contact = normaliseContact(row);
+                if (!contact) {
+                    summary.invalid += 1;
+                    continue;
+                }
+                if (contactsByEmail.has(contact.email)) {
+                    summary.duplicatesInFile += 1;
+                    continue;
+                }
+                contactsByEmail.set(contact.email, contact);
+            }
 
-            const existingEmails = new Set(
-                existingContacts.map(contact => contact.email)
+            const contacts = [...contactsByEmail.values()];
+            if (!contacts.length) return;
+
+            // $setOnInsert plus the unique { userId, email } index makes this
+            // idempotent and avoids loading existing contacts into application memory.
+            const result = await Contact.bulkWrite(
+                contacts.map((contact) => ({
+                    updateOne: {
+                        filter: { userId, email: contact.email },
+                        update: { $setOnInsert: { ...contact, userId } },
+                        upsert: true,
+                    }
+                })),
+                { ordered: false }
             );
+            summary.inserted += result.upsertedCount || 0;
+            summary.existing += result.matchedCount || 0;
 
-            // Filter out duplicates
-            const newContacts = contacts.filter(contact => !existingEmails.has(contact.email)).map(contact => ({
-                ...contact,
-                userId: userId
-            }));
-            if (newContacts.length === 0 && (list != null && existingContacts.length == 0)) {
-                return [];
+            if (!list) return;
+
+            const persisted = await Contact.find(
+                { userId, email: { $in: contacts.map((contact) => contact.email) } },
+                { _id: 1 }
+            ).lean();
+            if (!persisted.length) return;
+
+            const listResult = await ListContact.bulkWrite(
+                persisted.map((contact) => ({
+                    updateOne: {
+                        filter: { userId, listId: list._id, contactId: contact._id },
+                        update: { $setOnInsert: { userId, listId: list._id, contactId: contact._id } },
+                        upsert: true,
+                    }
+                })),
+                { ordered: false }
+            );
+            const added = listResult.upsertedCount || 0;
+            summary.addedToList += added;
+            if (added) {
+                await List.updateOne({ _id: list._id, userId }, { $inc: { contactCount: added } });
             }
-            let insertedContacts = [];
-            if(newContacts.length > 0){
-                insertedContacts = await Contact.insertMany(newContacts);
+        };
+
+        const parser = fs.createReadStream(filePath).pipe(csv({
+            mapHeaders: ({ header }) => header.replace(/^\uFEFF/, '').trim()
+        }));
+        let batch = [];
+        for await (const row of parser) {
+            batch.push(row);
+            if (batch.length === IMPORT_BATCH_SIZE) {
+                await processBatch(batch);
+                batch = [];
             }
-            if(list && (insertedContacts.length > 0 || existingContacts.length > 0)){
-                let contacts = insertedContacts.map((contact)=>{
-                    return contact._id;
-                })
-                let existIds = existingContacts.map((c)=>{ return c._id})
-                let allContacts = [...contacts,...existIds]
-                let insertedIds = await ContactService.addContacts(userId,list._id,allContacts,list.contactCount)
-                return insertedIds
-            }
-            return insertedContacts
-        } catch (error) {
-            throw error;
         }
+        if (batch.length) await processBatch(batch);
+        return summary;
     },
     addContacts: async (userId, listId, contacts,prevCount=0) => {
         try {

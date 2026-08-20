@@ -21,5 +21,10 @@ const fileFilter = (req, file, cb) => {
 
 module.exports = multer({ 
   storage,
-  fileFilter
+  fileFilter,
+  // A 20 lakh-row CSV can be hundreds of megabytes. Keep the upload on disk,
+  // rather than in process memory, and cap it to a deliberately generous size.
+  limits: {
+    fileSize: 1024 * 1024 * 1024 // 1 GB
+  }
 });
