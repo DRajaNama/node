@@ -7,6 +7,8 @@ router.use(maintenanceMiddleware);
 router.use(require("./authRoute"));
 router.use(require("./userRoute"));
 router.use(require("./aiRoute"));
+router.use(require("./mediaRoute"));
+router.use(require("./stockLibraryRoute"));
 router.use(require("./contactRoute"));
 router.use(require("./listRoute"));
 router.use(require("./templateCategoryRoute"));

@@ -1,5 +1,7 @@
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
+const IntegrationSettingsService = require('../services/integrationSettings.services');
+const PixabayService = require('../services/pixabay.services');
 const AdminService = require('../services/admin.services');
 const AuditLogService = require('../services/auditLog.services');
 const UserService = require('../services/user.services');
@@ -481,6 +483,23 @@ const AdminController = {
     } catch (error) {
       res.status(400).send({ data: null, message: error.message || Message.SERVER_ERROR });
     }
+  },
+
+  getPixabayIntegration: async (_req, res) => {
+    try { res.send({ data: await IntegrationSettingsService.publicIntegration('pixabay'), message: Message.SUCCESS }); }
+    catch { res.status(500).send({ data: null, message: Message.SERVER_ERROR }); }
+  },
+
+  updatePixabayIntegration: async (req, res) => {
+    try {
+      const data = await IntegrationSettingsService.saveIntegration('pixabay', req.body || {}, req.userId);
+      res.send({ data: { provider: 'pixabay', enabled: data.enabled, hasApiKey: !!data.config?.apiKey }, message: Message.RECORD_UPDATED });
+    } catch { res.status(400).send({ data: null, message: 'Unable to save Pixabay settings.' }); }
+  },
+
+  testPixabayIntegration: async (_req, res) => {
+    try { res.send({ data: await PixabayService.testConnection(), message: 'Pixabay connection successful.' }); }
+    catch { res.status(400).send({ data: null, message: 'Unable to connect to Pixabay. Please check the API key.' }); }
   },
 
   listBlogPosts: async (req, res) => {

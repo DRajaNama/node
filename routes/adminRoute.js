@@ -63,6 +63,9 @@ router.post(
   AdminController.uploadBrandingAsset
 );
 router.get('/settings/test-smtp', withPerm(PERMISSIONS.SETTINGS_MANAGE), AdminController.testSystemSmtp);
+router.get('/settings/integrations/pixabay', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.getPixabayIntegration);
+router.put('/settings/integrations/pixabay', withPerm(PERMISSIONS.SETTINGS_MANAGE), AdminController.updatePixabayIntegration);
+router.post('/settings/integrations/pixabay/test', withPerm(PERMISSIONS.SETTINGS_MANAGE), AdminController.testPixabayIntegration);
 router.get('/settings/theme', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.getThemeSettings);
 router.put('/settings/theme', admin, superAdminMiddleware, AdminController.updateThemeSettings);
 router.post('/settings/theme/reset', admin, superAdminMiddleware, AdminController.resetThemeSettings);

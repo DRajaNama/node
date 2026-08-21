@@ -64,6 +64,7 @@ const systemSettingsSchema = new mongoose.Schema(
       user: { type: [String], default: [] },
       admin: { type: [String], default: [] },
     },
+    integrations: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
   { timestamps: true, versionKey: false }
 );
@@ -71,6 +72,7 @@ const systemSettingsSchema = new mongoose.Schema(
 systemSettingsSchema.methods.toJSON = function () {
   const obj = this.toObject();
   if (obj.smtp) delete obj.smtp.password;
+  if (obj.integrations?.pixabay?.config?.apiKey) delete obj.integrations.pixabay.config.apiKey;
   return obj;
 };
 
