@@ -17,7 +17,8 @@ const predefinedTemplateSchema = new mongoose.Schema(
     description: { type: String, default: '' },
     thumb: { type: String, default: 'template.png' },
     previewUrl: { type: String, default: '' },
-    html: { type: String, required: true },
+    html: { type: String, default: '' },
+    htmlFile: { type: String, default: '' },
     category: { type: String, default: '', trim: true, index: true },
     tags: [{ type: String, trim: true }],
     status: {

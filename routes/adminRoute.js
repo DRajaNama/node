@@ -93,6 +93,7 @@ router.get('/queue', withPerm(PERMISSIONS.ANALYTICS_VIEW), AdminController.getQu
 
 const AdminPredefinedTemplateController = require('../controller/adminPredefinedTemplateController');
 const imageUpload = require('../middleware/image.upload.middleware');
+const predefinedTemplateZipUpload = require('../middleware/predefinedTemplateZip.upload.middleware');
 
 router.get('/predefined-templates/stats', withPerm(PERMISSIONS.MARKETING_VIEW), AdminPredefinedTemplateController.stats);
 router.get('/predefined-templates/categories', withPerm(PERMISSIONS.MARKETING_VIEW), AdminPredefinedTemplateController.getCategories);
@@ -101,6 +102,7 @@ router.get('/predefined-templates/:id', withPerm(PERMISSIONS.MARKETING_VIEW), Ad
 router.post('/predefined-templates', withPerm(PERMISSIONS.MARKETING_MANAGE), AdminPredefinedTemplateController.create);
 router.put('/predefined-templates/:id', withPerm(PERMISSIONS.MARKETING_MANAGE), AdminPredefinedTemplateController.update);
 router.post('/predefined-templates/:id/content', withPerm(PERMISSIONS.MARKETING_MANAGE), imageUpload.single('thumb'), AdminPredefinedTemplateController.updateContent);
+router.post('/predefined-templates/:id/zip', withPerm(PERMISSIONS.MARKETING_MANAGE), predefinedTemplateZipUpload.single('file'), AdminPredefinedTemplateController.uploadZip);
 router.post('/predefined-templates/:id/duplicate', withPerm(PERMISSIONS.MARKETING_MANAGE), AdminPredefinedTemplateController.duplicate);
 router.post('/predefined-templates/:id/publish', withPerm(PERMISSIONS.MARKETING_MANAGE), AdminPredefinedTemplateController.publish);
 router.post('/predefined-templates/:id/unpublish', withPerm(PERMISSIONS.MARKETING_MANAGE), AdminPredefinedTemplateController.unpublish);

@@ -3,6 +3,8 @@ const PredefinedTemplate = require('../models/predefinedTemplate.model');
 const Message = require('../helpers/constant.message');
 const auditLogService = require('../services/auditLog.services');
 const { PREDEFINED_TEMPLATE_STATUS } = require('../constants/predefinedTemplate.constants');
+const PredefinedTemplateZipService = require('../services/predefinedTemplateZip.services');
+const fs = require('fs/promises');
 
 const audit = async (req, action, resourceId, metadata) => {
   try {
@@ -72,7 +74,12 @@ const AdminPredefinedTemplateController = {
     try {
       const data = await PredefinedTemplateService.getById(req.params.id);
       if (!data) return res.status(404).send({ data: null, message: Message.DATA_NOT_FOUND });
-      res.send({ data, message: Message.SUCCESS });
+      const record = data.toObject();
+      if (!record.html && record.htmlFile?.startsWith('/uploads/predefinedtemplates/')) {
+        const localPath = require('path').resolve(__dirname, '..', record.htmlFile.replace(/^\/uploads\//, 'uploads/'));
+        record.html = await fs.readFile(localPath, 'utf8');
+      }
+      res.send({ data: record, message: Message.SUCCESS });
     } catch (error) {
       res.status(500).send({ data: null, message: Message.SERVER_ERROR });
     }
@@ -119,6 +126,25 @@ const AdminPredefinedTemplateController = {
       res.send({ data, message: Message.RECORD_UPDATED });
     } catch (error) {
       res.status(400).send({ data: null, message: error.message || Message.SERVER_ERROR });
+    }
+  },
+
+  uploadZip: async (req, res) => {
+    try {
+      if (!req.file?.path) return res.status(400).send({ data: null, message: 'A template ZIP file is required.' });
+      const template = await PredefinedTemplateService.getById(req.params.id);
+      if (!template) return res.status(404).send({ data: null, message: Message.DATA_NOT_FOUND });
+      const processed = await PredefinedTemplateZipService.extractAndProcess(req.file.path, template._id.toString());
+      const updates = template.type === 'email' || template.type === 'popup'
+        ? { html: processed.html, htmlFile: processed.htmlFile }
+        : { html: '', htmlFile: processed.htmlFile };
+      const data = await PredefinedTemplateService.update(req.params.id, updates, req.userId);
+      await audit(req, 'Predefined Template ZIP Uploaded', req.params.id, { fileCount: processed.fileCount });
+      return res.send({ data, message: 'Template ZIP extracted and processed successfully.' });
+    } catch (error) {
+      return res.status(400).send({ data: null, message: error.message || 'Unable to process template ZIP.' });
+    } finally {
+      if (req.file?.path) await fs.unlink(req.file.path).catch(() => {});
     }
   },
 

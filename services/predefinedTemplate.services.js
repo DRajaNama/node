@@ -10,6 +10,17 @@ const {
 } = require('../constants/predefinedTemplate.constants');
 const { getBlankTemplate } = require('../utils/template.utils');
 const { getBlankLandingPageHtml, getBlankFormPopupHtml } = require('../utils/landingPage.utils');
+const fs = require('fs/promises');
+const path = require('path');
+
+const resolveTemplateHtml = async (template) => {
+  if (template.html) return template.html;
+  if (!template.htmlFile || !template.htmlFile.startsWith('/uploads/predefinedtemplates/')) return '';
+  const filePath = path.resolve(__dirname, '..', template.htmlFile.replace(/^\/uploads\//, 'uploads/'));
+  const allowedRoot = path.resolve(__dirname, '..', 'uploads', 'predefinedtemplates');
+  if (!filePath.startsWith(`${allowedRoot}${path.sep}`)) return '';
+  return fs.readFile(filePath, 'utf8');
+};
 
 const paginate = async (filter, page = 1, limit = 20, sort = { displayOrder: 1, updatedAt: -1 }) => {
   const skip = (page - 1) * limit;
@@ -128,7 +139,7 @@ const PredefinedTemplateService = {
     if (!existing) throw new Error('Template not found');
 
     const updates = { ...data, updatedBy: adminUserId };
-    if (data.html && data.html !== existing.html) {
+    if ((data.html !== undefined && data.html !== existing.html) || (data.htmlFile && data.htmlFile !== existing.htmlFile)) {
       updates.version = (existing.version || 1) + 1;
     }
     return PredefinedTemplate.findByIdAndUpdate(id, { $set: updates }, { new: true, runValidators: true });
@@ -204,6 +215,7 @@ const PredefinedTemplateService = {
 
     let created;
     const snapshotVersion = predefined.version || 1;
+    const templateHtml = await resolveTemplateHtml(predefined);
 
     switch (predefined.type) {
       case PREDEFINED_TEMPLATE_TYPES.EMAIL:
@@ -212,7 +224,7 @@ const PredefinedTemplateService = {
           categoryId: payload.categoryId,
           title: payload.title || predefined.name,
           description: payload.description || predefined.description,
-          html: predefined.html,
+          html: templateHtml,
           thumb: predefined.thumb || 'template.png',
           status: 'draft',
           defaultTemplateId: predefined._id,
@@ -226,7 +238,7 @@ const PredefinedTemplateService = {
           name: payload.name || predefined.name,
           slug: (payload.slug || predefined.slug).trim().toLowerCase(),
           description: payload.description || predefined.description,
-          html: predefined.html,
+          html: templateHtml,
           thumb: predefined.thumb || 'landing.png',
           status: 'draft',
           stats: { views: 0, leads: 0 },
@@ -240,7 +252,7 @@ const PredefinedTemplateService = {
           userId,
           name: payload.name || predefined.name,
           description: payload.description || predefined.description,
-          html: predefined.html,
+          html: templateHtml,
           thumb: predefined.thumb || 'template.png',
           status: 'draft',
           predefinedTemplateId: predefined._id,

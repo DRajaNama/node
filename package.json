@@ -31,6 +31,7 @@
     "nodemon": "^3.1.14",
     "openai": "^6.39.1",
     "qrcode": "^1.5.4",
+    "unzipper": "^0.12.3",
     "whatsapp-web.js": "github:wwebjs/whatsapp-web.js#main",
     "winston": "^3.19.0"
   },

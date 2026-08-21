@@ -1,5 +1,6 @@
 const OpenAI = require('openai');
 const cheerio = require('cheerio');
+require('dotenv').config();
 
 const MAX_SOURCE_CHARS = 30000;
 const ALLOWED_TYPES = new Set(['email', 'landing', 'popup']);
@@ -47,6 +48,7 @@ const AIService = {
   async generateTemplate(input) {
     const assetType = String(input.assetType || '').toLowerCase();
     if (!ALLOWED_TYPES.has(assetType)) throw new Error('Asset type must be email, landing, or popup.');
+    console.log('process',process.env.OPENAI_API_KEY)
     if (!process.env.OPENAI_API_KEY) throw new Error('AI generation is not configured. Set OPENAI_API_KEY on the server.');
     const websiteUrl = normaliseUrl(input.websiteUrl);
     const website = await getWebsiteContext(websiteUrl);
