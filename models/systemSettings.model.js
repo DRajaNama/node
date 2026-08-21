@@ -73,6 +73,10 @@ systemSettingsSchema.methods.toJSON = function () {
   const obj = this.toObject();
   if (obj.smtp) delete obj.smtp.password;
   if (obj.integrations?.pixabay?.config?.apiKey) delete obj.integrations.pixabay.config.apiKey;
+  if (obj.integrations?.paypal?.config) {
+    delete obj.integrations.paypal.config.clientSecret;
+    delete obj.integrations.paypal.config.clientId;
+  }
   return obj;
 };
 

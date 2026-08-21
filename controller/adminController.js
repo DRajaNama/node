@@ -2,6 +2,7 @@ const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
 const IntegrationSettingsService = require('../services/integrationSettings.services');
 const PixabayService = require('../services/pixabay.services');
+const PayPalService = require('../services/paypal.services');
 const AdminService = require('../services/admin.services');
 const AuditLogService = require('../services/auditLog.services');
 const UserService = require('../services/user.services');
@@ -500,6 +501,23 @@ const AdminController = {
   testPixabayIntegration: async (_req, res) => {
     try { res.send({ data: await PixabayService.testConnection(), message: 'Pixabay connection successful.' }); }
     catch { res.status(400).send({ data: null, message: 'Unable to connect to Pixabay. Please check the API key.' }); }
+  },
+
+  getPayPalIntegration: async (_req, res) => {
+    try { res.send({ data: await IntegrationSettingsService.publicIntegration('paypal'), message: Message.SUCCESS }); }
+    catch { res.status(500).send({ data: null, message: Message.SERVER_ERROR }); }
+  },
+
+  updatePayPalIntegration: async (req, res) => {
+    try {
+      const data = await IntegrationSettingsService.saveIntegration('paypal', req.body || {}, req.userId);
+      res.send({ data: { provider: 'paypal', enabled: data.enabled, environment: data.config?.environment || 'sandbox', hasClientId: !!data.config?.clientId, hasClientSecret: !!data.config?.clientSecret }, message: Message.RECORD_UPDATED });
+    } catch { res.status(400).send({ data: null, message: 'Unable to save PayPal settings.' }); }
+  },
+
+  testPayPalIntegration: async (_req, res) => {
+    try { await PayPalService.getAccessToken(); res.send({ data: { connected: true }, message: 'PayPal connection successful.' }); }
+    catch { res.status(400).send({ data: null, message: 'Unable to connect to PayPal. Please check the credentials.' }); }
   },
 
   listBlogPosts: async (req, res) => {

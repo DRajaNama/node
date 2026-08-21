@@ -8,5 +8,9 @@ router.get('/subscription', authMiddleware, SubscriptionController.getMySubscrip
 router.get('/payments', authMiddleware, SubscriptionController.getMyPayments);
 router.get('/usage', authMiddleware, SubscriptionController.getUsageSummary);
 router.get('/entitlements/registry', authMiddleware, SubscriptionController.getEntitlementRegistry);
+router.get('/subscriptions/paypal/config', authMiddleware, SubscriptionController.paypalConfig);
+router.post('/subscriptions/paypal/create', authMiddleware, SubscriptionController.preparePayPal);
+router.post('/subscriptions/paypal/verify', authMiddleware, SubscriptionController.verifyPayPal);
+router.post('/subscriptions/paypal/cancel', authMiddleware, SubscriptionController.cancelPayPal);
 
 module.exports = router;

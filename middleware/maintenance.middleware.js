@@ -5,6 +5,7 @@ const PUBLIC_MAINTENANCE_PATHS = [
   '/public/maintenance-status',
   '/public/site-settings',
   '/public/theme',
+  '/webhooks/paypal',
 ];
 
 const maintenanceMiddleware = async (req, res, next) => {

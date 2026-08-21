@@ -23,6 +23,7 @@ router.use(require("./leadRoute"));
 router.use(require("./predefinedTemplateRoute"));
 router.use("/admin", require("./adminRoute"));
 router.use(require("./subscriptionRoute"));
+router.post('/webhooks/paypal', require('../controller/subscriptionController').paypalWebhook);
 router.use(require("./publicRoute"));
 router.use(require('./whatsapp.routes'));
 

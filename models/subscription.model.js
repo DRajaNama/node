@@ -40,7 +40,7 @@ const subscriptionSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['trial', 'active', 'past_due', 'cancelled', 'expired', 'paused'],
+      enum: ['pending', 'trial', 'active', 'past_due', 'cancelled', 'expired', 'paused'],
       default: 'trial',
       index: true,
     },
@@ -58,5 +58,6 @@ const subscriptionSchema = new mongoose.Schema(
 );
 
 subscriptionSchema.index({ userId: 1, status: 1 });
+subscriptionSchema.index({ paymentProvider: 1, externalSubscriptionId: 1 });
 
 module.exports = mongoose.model('Subscription', subscriptionSchema);

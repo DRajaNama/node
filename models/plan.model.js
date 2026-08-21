@@ -31,6 +31,7 @@ const planSchema = new mongoose.Schema(
     entitlements: [entitlementSchema],
     version: { type: Number, default: 1 },
     subscriberCount: { type: Number, default: 0 },
+    paypalPlanId: { type: String, default: '' },
   },
   { timestamps: true, versionKey: false }
 );
