@@ -10,7 +10,7 @@ const userTemplateSchema = new mongoose.Schema(
     categoryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "TemplateCategory",
-      required: true,
+      required: false,
     },
     defaultTemplateId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -40,6 +40,11 @@ const userTemplateSchema = new mongoose.Schema(
       type: String,
       enum: ["draft", "published", "archived"],
       default: "draft",
+    },
+    editorType: {
+      type: String,
+      enum: ['visual', 'ckeditor'],
+      default: 'visual',
     },
   },
   { timestamps: true }

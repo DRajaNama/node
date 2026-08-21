@@ -47,6 +47,12 @@ const campaignSchema = new mongoose.Schema(
       required: true
     },
 
+    contentEditor: {
+      type: String,
+      enum: ["template", "ckeditor"],
+      default: "template"
+    },
+
     listIds: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "List"

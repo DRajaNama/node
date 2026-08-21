@@ -19,8 +19,16 @@ const campaignCreateValidation = (data) => {
     //     errors.fromEmail = 'From email is invalid';
     // }
 
-    if (!data.templateId || data.templateId.trim() === '') {
+    if (data.contentEditor === 'ckeditor') {
+        if (!data.emailHtml || data.emailHtml.trim() === '') {
+            errors.emailHtml = 'Email content is required';
+        }
+    } else if (!data.templateId || data.templateId.trim() === '') {
         errors.templateId = 'Template is required';
+    }
+
+    if (data.contentEditor && !['template', 'ckeditor'].includes(data.contentEditor)) {
+        errors.contentEditor = 'Invalid content editor';
     }
 
     if (!data.listIds || data.listIds.length === 0) {

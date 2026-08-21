@@ -5,6 +5,7 @@ const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
 const { ObjectId } = require('mongodb');
 const { CAMPAIGN_STATUS, SENDABLE_STATUSES } = require('../constants/campaign.constants');
+const Template = require('../models/template.model');
 
 const CONTROLLER = Message.CAMPAIGN_CONTROLLER;
 
@@ -44,6 +45,34 @@ const handleServerError = (res, action, error) => {
     res.status(500).send({ data: null, message: Message.SERVER_ERROR });
 };
 
+const saveCampaignEmailTemplate = async (body, userId, existingTemplateId = null) => {
+    if (body.contentEditor !== 'ckeditor') return body;
+    const html = String(body.emailHtml || '').trim();
+    if (!html) throw new Error('Email content is required');
+
+    let template = existingTemplateId
+        ? await Template.findOne({ _id: existingTemplateId, userId })
+        : null;
+    if (template?.editorType === 'ckeditor') {
+        template.title = `${body.name} email`;
+        template.description = `Email content for campaign: ${body.name}`;
+        template.html = html;
+        await template.save();
+    } else {
+        template = await Template.create({
+            userId,
+            title: `${body.name} email`,
+            description: `Email content for campaign: ${body.name}`,
+            html,
+            status: 'draft',
+            editorType: 'ckeditor',
+        });
+    }
+    body.templateId = template._id;
+    delete body.emailHtml;
+    return body;
+};
+
 const CampaignController = {
     create: async (req, res) => {
         logStart(Message.CREATE_ATTEMPT, req.body);
@@ -67,6 +96,7 @@ const CampaignController = {
             body.fromEmail = process.env.FROM_EMAIL || 'rajanamdav@gmail.com';
             body.replyTo = process.env.REPLY_TO || 'rajanamdav@gmail.com';
 
+            await saveCampaignEmailTemplate(req.body, req.userId);
             const record = await CampaignService.createRecord(req.body);
             logEnd(Message.CREATE_ATTEMPT, { campaignId: record._id });
             res.send({ data: record, message: Message.RECORD_CREATED });
@@ -98,6 +128,7 @@ const CampaignController = {
             const campaign = await getOwnedCampaign(req, res, Message.UPDATE_RECORD_ATTEMPT);
             if (!campaign) return;
 
+            await saveCampaignEmailTemplate(req.body, req.userId, campaign.templateId?._id || campaign.templateId);
             const record = await CampaignService.updateRecord(req.params.id, req.body);
             logEnd(Message.UPDATE_RECORD_ATTEMPT, { campaignId: req.params.id });
             res.send({ data: record, message: Message.RECORD_UPDATED });

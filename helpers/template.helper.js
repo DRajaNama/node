@@ -8,7 +8,20 @@ const prepareEmailHtml = (html) => {
     const $container = $(".ve-email-container").first();
 
     if (!$container.length) {
-        throw new Error("Email container not found");
+        // CKEditor creates normal HTML fragments instead of the visual
+        // editor's `.ve-email-container`. Preserve that content and give it a
+        // minimal email-safe document/table wrapper so campaign sends work for
+        // both authoring modes.
+        const body = $("body").html() || html;
+        return `<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f5f5f5;"><tr><td align="center" style="padding:20px;">
+    <table class="ve-email-container" role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#ffffff;"><tr><td style="padding:32px;color:#222222;font-size:16px;line-height:1.5;">
+      ${body}
+    </td></tr></table>
+  </td></tr></table>
+</body></html>`;
     }
 
     $("body").find(".editor-element").each((index, el) => {

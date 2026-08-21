@@ -32,7 +32,7 @@ const CampaignService = {
         })
         .populate({
             path: 'templateId',
-            select: '_id title'
+            select: '_id title html editorType'
         })
         .populate({
             path: 'listIds',
