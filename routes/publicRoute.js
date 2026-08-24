@@ -7,6 +7,7 @@ router.get('/public/landing-page/:slug', publicController.getLandingPage);
 router.get('/public/landing-pages/:slug', publicController.getLandingPage);
 router.get('/public/form-popup/:id', publicController.getFormPopup);
 router.post('/public/lead/submit', validatePayload, publicController.submitLead);
+router.get('/public/unsubscribe/:email',publicController.unsubscribe);
 router.get('/public/blog/posts', publicController.getBlogPosts);
 router.get('/public/blog/:slug', publicController.getBlogPost);
 router.get('/public/plans', publicController.getPublicPlans);

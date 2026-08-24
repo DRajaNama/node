@@ -1,4 +1,5 @@
 const cheerio = require("cheerio");
+require('dotenv').config();
 
 const prepareEmailHtml = (html) => {
     const $ = cheerio.load(html, {
@@ -60,9 +61,20 @@ const prepareEmailHtml = (html) => {
 const replaceTemplateVariables = (html, data) => {
     try {
         let content = prepareEmailHtml(html);
+
+        // Add default unsubscribe link if not provided
+        if (content.includes('[[UNSUBSCRIBE_LINK]]')) {
+            const unsubscribeLink =  data?.UNSUBSCRIBE_LINK || process.env.FULL_URL+'/api/public/unsubscribe/'+data?.EMAIL;
+            console.log('unsubsribeLink',unsubscribeLink)
+            content = content.replace(
+                /\[\[UNSUBSCRIBE_LINK\]\]/g,
+                unsubscribeLink
+            );
+        }
+
         Object.keys(data).forEach((key) => {
             const regex = new RegExp(
-                `\\[\\[${key}\\]\\]`, 
+                `\\[\\[${key}\\]\\]`,
                 "g"
             );
             content = content.replace(
@@ -71,7 +83,7 @@ const replaceTemplateVariables = (html, data) => {
             );
         });
         return content;
-    } catch(error){
+    } catch(error) {
         throw error;
     }
 };

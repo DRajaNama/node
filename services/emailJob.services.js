@@ -44,6 +44,7 @@ const processEmailJob = async (data) => {
 
     let html = replaceTemplateVariables(template.html, {
         NAME: data.firstName + data.lastName || '',
+        EMAIL:data.email,
         TRACKTOKEN : data.trackingToken
     });
     html = html; //cleanEmailHtml(html);

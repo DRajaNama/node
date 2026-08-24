@@ -224,6 +224,14 @@ const PublicController = {
       res.status(500).send({ data: null, message: Message.SERVER_ERROR });
     }
   },
+
+  unsubscribe:async (req,res)=>{
+    try {
+      res.send({ data: '', message: Message.SUCCESS });
+    } catch (error) {
+      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  }
 };
 
 module.exports = PublicController;
