@@ -108,7 +108,7 @@ const PublicController = {
         return res.status(400).send({ data: null, message: Message.DATA_NOT_FOUND });
       }
 
-      await EntitlementService.checkLimit(userId, 'contacts', 1);
+      //await EntitlementService.checkLimit(userId, 'contacts', 1);
 
       const leadData = {
         userId,

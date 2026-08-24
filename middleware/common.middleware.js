@@ -2,7 +2,6 @@ const Message = require("../helpers/constant.message");
 const logger = require("../helpers/logging");
 
 const validatePayload = (req, res, next) => {
-    console.log('req',req)
     const body = req.body || {};
     const file = req.file;
     const files = req.files;

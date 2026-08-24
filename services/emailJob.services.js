@@ -46,7 +46,7 @@ const processEmailJob = async (data) => {
         NAME: data.firstName + data.lastName || '',
         TRACKTOKEN : data.trackingToken
     });
-    html = cleanEmailHtml(html);
+    html = html; //cleanEmailHtml(html);
 
     await CampaignService.updateRecipientStatus(data.recipientId, {
         status: RECIPIENT_STATUS.SENDING
