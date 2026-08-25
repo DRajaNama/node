@@ -4,9 +4,11 @@ const request = require('supertest');
 const createApp = require('../../app');
 const Plan = require('../../models/plan.model');
 const { connectTestDb, clearCollections } = require('../helpers/setupDb');
-const { seedUsers, signToken } = require('../helpers/seed');
+const { seedUsers, assignPlan, signToken } = require('../helpers/seed');
 const { authHeader } = require('../helpers/auth');
 const { REGISTRY, getDefaultEntitlement } = require('../../config/entitlements.registry');
+const PlanService = require('../../services/plan.services');
+const EntitlementService = require('../../services/entitlement.services');
 
 let app;
 let users;
@@ -27,6 +29,33 @@ beforeEach(async () => {
 });
 
 describe('plans API integration', () => {
+  it('backfills the inert workflow placeholder for automation-enabled plans', async () => {
+    const plan = await Plan.create({
+      name: 'Legacy Automation Plan',
+      slug: `legacy-automation-${Date.now()}`,
+      entitlements: [
+        { key: 'marketing_automation', type: 'boolean', enabled: true },
+        {
+          key: 'automation_workflows',
+          type: 'limit',
+          enabled: true,
+          limit: 0,
+          isUnlimited: false,
+        },
+      ],
+    });
+
+    await assignPlan(users.customer._id, plan._id);
+    await PlanService.ensureAutomationWorkflowEntitlements();
+    const updated = await Plan.findById(plan._id).lean();
+    const workflows = updated.entitlements.find((item) => item.key === 'automation_workflows');
+    assert.equal(workflows.isUnlimited, true);
+    assert.equal(
+      await EntitlementService.getLimit(users.customer._id, 'automation_workflows'),
+      Infinity
+    );
+  });
+
   it('creates, duplicates, deactivates, and archives a plan', async () => {
     const token = signToken(users.superAdmin);
     const slug = `plan-${Date.now()}`;

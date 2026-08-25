@@ -60,6 +60,31 @@ async function seedLimitedContactPlan(limit = 2) {
   return plan;
 }
 
+async function seedAutomationPlan(workflowLimit = 25) {
+  return Plan.create({
+    name: 'Test Automation',
+    slug: `test-automation-${workflowLimit}-${Date.now()}`,
+    description: 'Test plan with marketing automation enabled',
+    monthlyPrice: 0,
+    yearlyPrice: 0,
+    status: 'active',
+    isPublic: true,
+    displayOrder: 98,
+    entitlements: [
+      { key: 'marketing_automation', type: 'boolean', enabled: true },
+      {
+        key: 'automation_workflows',
+        type: 'limit',
+        enabled: true,
+        limit: workflowLimit,
+        isUnlimited: false,
+      },
+      { key: 'email_sends', type: 'period_limit', enabled: true, isUnlimited: true, period: 'monthly' },
+    ],
+    version: 1,
+  });
+}
+
 async function assignPlan(userId, planId) {
   return SubscriptionService.assignPlanToUser(userId, planId, 'active');
 }
@@ -72,6 +97,7 @@ module.exports = {
   createUser,
   seedUsers,
   seedLimitedContactPlan,
+  seedAutomationPlan,
   assignPlan,
   signToken,
 };

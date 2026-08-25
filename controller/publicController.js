@@ -9,6 +9,7 @@ const { leadSubmitValidation } = require('../validations/lead.validations');
 // const { preparePublishHtml } = require('../helpers/landingPage.helper');
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
+const AutomationDispatchService = require('../services/automationDispatch.services');
 
 const extractLeadFields = (body) => {
   const known = ['landingPageId', 'formPopupId', 'firstName', 'lastName', 'email', 'phone', 'source'];
@@ -131,6 +132,19 @@ const PublicController = {
       } catch (contactErr) {
         logger.error('Contact upsert from lead failed', contactErr);
       }
+
+      void AutomationDispatchService.dispatchLead({
+        leadId: record._id,
+        userId,
+      }).catch((dispatchError) => {
+        const safeError = AutomationDispatchService.safeQueueError(dispatchError);
+        logger.error('Lead automation dispatch failed', {
+          leadId: String(record._id),
+          userId: String(userId),
+          code: safeError.code,
+          message: safeError.message,
+        });
+      });
 
       if (landingPage) {
         await LandingPageService.incrementLeads(landingPage._id);

@@ -26,6 +26,7 @@ const STARTER_ENTITLEMENTS = {
   predefined_popup_templates: { type: 'limit', enabled: true, isUnlimited: true },
   lead_capture_forms: { type: 'limit', enabled: true, limit: 3, isUnlimited: false },
   team_members: { type: 'limit', enabled: true, limit: 1, isUnlimited: false },
+  automation_workflows: { type: 'limit', enabled: true, limit: 0, isUnlimited: false },
   marketing_automation: { type: 'boolean', enabled: false },
   ab_testing: { type: 'boolean', enabled: false },
   advanced_reporting: { type: 'boolean', enabled: true },
@@ -39,6 +40,7 @@ const STANDARD_ENTITLEMENTS = {
   custom_email_templates: { limit: 25 },
   custom_landing_pages: { limit: 1 },
   lead_capture_forms: { limit: 10 },
+  automation_workflows: { type: 'limit', enabled: true, isUnlimited: true },
   marketing_automation: { type: 'boolean', enabled: true },
   ab_testing: { type: 'boolean', enabled: true },
   advanced_reporting: { type: 'boolean', enabled: true },
@@ -91,6 +93,105 @@ const mergeEntitlements = (baseOverrides) => {
 };
 
 const PlanService = {
+  async ensureAutomationWorkflowEntitlements() {
+    // The workflow entitlement pre-dates the automation feature and was seeded
+    // as an inert zero placeholder. Preserve custom positive limits, while
+    // allowing plans that already enable marketing automation to use it.
+    await Plan.updateMany(
+      {
+        $and: [
+          { entitlements: { $elemMatch: { key: 'marketing_automation', enabled: true } } },
+          {
+            entitlements: {
+              $elemMatch: {
+                key: 'automation_workflows',
+                limit: 0,
+                isUnlimited: { $ne: true },
+              },
+            },
+          },
+        ],
+      },
+      {
+        $set: {
+          'entitlements.$[workflow].enabled': true,
+          'entitlements.$[workflow].isUnlimited': true,
+        },
+      },
+      { arrayFilters: [{ 'workflow.key': 'automation_workflows' }] }
+    );
+
+    await Plan.updateMany(
+      {
+        entitlements: { $elemMatch: { key: 'marketing_automation', enabled: true } },
+        'entitlements.key': { $ne: 'automation_workflows' },
+      },
+      {
+        $push: {
+          entitlements: {
+            key: 'automation_workflows',
+            type: 'limit',
+            enabled: true,
+            limit: 0,
+            isUnlimited: true,
+            period: null,
+          },
+        },
+      }
+    );
+
+    await Subscription.updateMany(
+      {
+        status: { $in: ['trial', 'active', 'past_due', 'paused'] },
+        $and: [
+          {
+            'planSnapshot.entitlements': {
+              $elemMatch: { key: 'marketing_automation', enabled: true },
+            },
+          },
+          {
+            'planSnapshot.entitlements': {
+              $elemMatch: {
+                key: 'automation_workflows',
+                limit: 0,
+                isUnlimited: { $ne: true },
+              },
+            },
+          },
+        ],
+      },
+      {
+        $set: {
+          'planSnapshot.entitlements.$[workflow].enabled': true,
+          'planSnapshot.entitlements.$[workflow].isUnlimited': true,
+        },
+      },
+      { arrayFilters: [{ 'workflow.key': 'automation_workflows' }] }
+    );
+
+    await Subscription.updateMany(
+      {
+        status: { $in: ['trial', 'active', 'past_due', 'paused'] },
+        'planSnapshot.entitlements': {
+          $elemMatch: { key: 'marketing_automation', enabled: true },
+        },
+        'planSnapshot.entitlements.key': { $ne: 'automation_workflows' },
+      },
+      {
+        $push: {
+          'planSnapshot.entitlements': {
+            key: 'automation_workflows',
+            type: 'limit',
+            enabled: true,
+            limit: 0,
+            isUnlimited: true,
+            period: null,
+          },
+        },
+      }
+    );
+  },
+
   validatePlanData(data) {
     const errors = [];
     if (!data.name?.trim()) errors.push('Plan name is required');
@@ -111,7 +212,10 @@ const PlanService = {
 
   async seedDefaultPlansIfEmpty() {
     const count = await Plan.countDocuments();
-    if (count > 0) return;
+    if (count > 0) {
+      await this.ensureAutomationWorkflowEntitlements();
+      return;
+    }
 
     const defaults = [
       {

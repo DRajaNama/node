@@ -16,11 +16,11 @@ const Message = require('../helpers/constant.message');
 const sendEmail = async(data,smtp=null)=>{
     try {
         if(smtp){
-            transporter = nodemailer.createTransport({
+            const transporter = nodemailer.createTransport({
                 host: smtp.host,
                 port: smtp.port,
                 secure: smtp.encryption === "SSL",
-                auth:{
+                auth: smtp.authentication === false ? undefined : {
                     user: smtp.username,
                     pass: smtp.password
                 }

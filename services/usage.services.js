@@ -3,6 +3,7 @@ const List = require('../models/list.model');
 const Template = require('../models/template.model');
 const LandingPage = require('../models/landingPage.model');
 const FormPopup = require('../models/formPopup.model');
+const Automation = require('../models/automation.model');
 const UsageCounter = require('../models/usageCounter.model');
 const { RESOURCE_KEYS } = require('../config/entitlements.registry');
 
@@ -40,7 +41,7 @@ const UsageService = {
   },
 
   async countAutomationWorkflows(userId) {
-    return 0;
+    return Automation.countDocuments({ userId });
   },
 
   async getCounterUsage(userId, resourceKey, period) {

@@ -20,6 +20,7 @@ router.use(require("./settingRoute"));
 router.use(require("./landingPageRoute"));
 router.use(require("./formPopupRoute"));
 router.use(require("./leadRoute"));
+router.use(require("./automationRoute"));
 router.use(require("./predefinedTemplateRoute"));
 router.use("/admin", require("./adminRoute"));
 router.use(require("./subscriptionRoute"));

@@ -22,6 +22,13 @@ const campaignRecipientSchema = new mongoose.Schema(
       required: true
     },
 
+    automationExecutionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AutomationExecution",
+      default: null,
+      index: true
+    },
+
     email: {
       type: String,
       required: true
