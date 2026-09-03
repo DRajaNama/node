@@ -10,6 +10,7 @@ const CAMPAIGN_STATUS = Object.freeze({
     PROCESSING: 'processing',
     SENDING: 'sending',
     PAUSED: 'paused',
+    FAILED: 'failed',
     COMPLETED: 'completed',
     CANCELLED: 'cancelled'
 });

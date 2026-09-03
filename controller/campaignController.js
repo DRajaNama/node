@@ -259,6 +259,34 @@ const CampaignController = {
         }
     },
 
+    retry: async (req, res) => {
+        logStart(Message.SEND_CAMPAIGN_ATTEMPT, { campaignId: req.params.id, action: 'retry' });
+        try {
+            const campaign = await getOwnedCampaign(req, res, Message.SEND_CAMPAIGN_ATTEMPT);
+            if (!campaign) return;
+            if (rejectAutomationLifecycleAction(campaign, res, Message.SEND_CAMPAIGN_ATTEMPT)) return;
+
+            const record = await CampaignSendService.retryCampaign(req.params.id, req.userId);
+            res.send({ data: record, message: Message.CAMPAIGN_SEND_SUCCESS });
+        } catch (error) {
+            handleServerError(res, Message.SEND_CAMPAIGN_ATTEMPT, error);
+        }
+    },
+
+    resend: async (req, res) => {
+        logStart(Message.SEND_CAMPAIGN_ATTEMPT, { campaignId: req.params.id, action: 'resend' });
+        try {
+            const campaign = await getOwnedCampaign(req, res, Message.SEND_CAMPAIGN_ATTEMPT);
+            if (!campaign) return;
+            if (rejectAutomationLifecycleAction(campaign, res, Message.SEND_CAMPAIGN_ATTEMPT)) return;
+
+            const record = await CampaignSendService.resendCampaign(req.params.id, req.userId);
+            res.send({ data: record, message: Message.CAMPAIGN_SEND_SUCCESS });
+        } catch (error) {
+            handleServerError(res, Message.SEND_CAMPAIGN_ATTEMPT, error);
+        }
+    },
+
     pause: async (req, res) => {
         logStart(Message.PAUSE_CAMPAIGN_ATTEMPT, { campaignId: req.params.id });
         try {

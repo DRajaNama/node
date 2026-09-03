@@ -13,6 +13,8 @@ router.get('/campaign/:id', authMiddleware, CampaignController.get);
 router.put('/campaign/update/:id', authMiddleware, validatePayload, CampaignController.update);
 router.delete('/campaign/delete/:id', authMiddleware, CampaignController.delete);
 router.post('/campaign/send/:id', authMiddleware, CampaignController.send);
+router.post('/campaign/retry/:id', authMiddleware, CampaignController.retry);
+router.post('/campaign/resend/:id', authMiddleware, CampaignController.resend);
 router.put('/campaign/pause/:id', authMiddleware, CampaignController.pause);
 router.put('/campaign/resume/:id', authMiddleware, CampaignController.resume);
 router.put('/campaign/cancel/:id', authMiddleware, CampaignController.cancel);

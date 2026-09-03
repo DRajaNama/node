@@ -230,6 +230,10 @@ const CampaignService = {
             .limit(limit);
     },
 
+    getRecipientsByStatus: async (campaignId, status) => {
+        return await CampaignRecipient.find({ campaignId, status });
+    },
+
     createRecipients: async (data) => {
 
         const recipients = data.map(item=>({

@@ -10,6 +10,26 @@ const { ObjectId } = require('mongodb');
 
 const CampaignSendService = {
 
+    enqueueRecipients: async (campaign, recipients, userId, opts = {}) => {
+        const jobs = recipients.map((recipient) => ({
+            name: 'send-email',
+            opts,
+            data: {
+                userId,
+                campaignId: campaign._id.toString(),
+                recipientId: recipient._id.toString(),
+                contactId: recipient.contactId.toString(),
+                email: recipient.email,
+                firstName: recipient.firstName,
+                lastName: recipient.lastName,
+                trackingToken: recipient.trackingToken
+            }
+        }));
+
+        await emailQueue.addBulk(jobs);
+        return jobs.length;
+    },
+
     startCampaign: async (campaignId, userId) => {
 
         const query = [{
@@ -84,21 +104,6 @@ const CampaignSendService = {
 
         const insertedRecipients = await CampaignService.createRecipients(recipientDocs);
 
-        const jobs = insertedRecipients.map((recipient) => ({
-            name: 'send-email',
-            data: {
-                userId:userId,
-                campaignId: campaign._id.toString(),
-                recipientId: recipient._id.toString(),
-                contactId: recipient.contactId.toString(),
-                email: recipient.email,
-                firstName: recipient.firstName,
-                lastName: recipient.lastName,
-                trackingToken: recipient.trackingToken
-            }
-        }));
-
-        let queueJobs = jobs;
         if (campaign.sendType === "schedule") {
             if (!campaign.scheduledAt) {
                 throw new Error(
@@ -111,13 +116,6 @@ const CampaignSendService = {
                     "Schedule time must be future"
                 );
             }
-            queueJobs = jobs.map(job => ({
-                    ...job,
-                    opts: {
-                        delay: delay
-                    }
-                }));
-
             campaign.status = CAMPAIGN_STATUS.SCHEDULED;
 
 
@@ -125,7 +123,10 @@ const CampaignSendService = {
             campaign.status = CAMPAIGN_STATUS.SENDING;
         }
         
-        await emailQueue.addBulk(queueJobs);
+        const queueOptions = campaign.sendType === 'schedule'
+            ? { delay: new Date(campaign.scheduledAt).getTime() - Date.now() }
+            : {};
+        await CampaignSendService.enqueueRecipients(campaign, insertedRecipients, userId, queueOptions);
 
         await EntitlementService.recordEmailSends(userId, insertedRecipients.length);
 
@@ -134,10 +135,66 @@ const CampaignSendService = {
         campaign.stats.pending = insertedRecipients.length;
         await campaign.save();
 
-        return {
-            campaignId: campaign._id,
-            totalRecipients: insertedRecipients.length
-        };
+        return campaign;
+    },
+
+    retryCampaign: async (campaignId, userId) => {
+        const campaign = await CampaignService.findByIdAndUserId(campaignId, userId);
+        if (!campaign) throw new Error(Message.DATA_NOT_FOUND);
+        if (campaign.status !== CAMPAIGN_STATUS.FAILED) throw new Error(Message.INVALID_STATUS);
+
+        const failedRecipients = await CampaignService.getRecipientsByStatus(
+            campaignId,
+            RECIPIENT_STATUS.FAILED
+        );
+        if (failedRecipients.length === 0) throw new Error(Message.DATA_NOT_FOUND);
+
+        await CampaignRecipient.updateMany(
+            { _id: { $in: failedRecipients.map((recipient) => recipient._id) } },
+            { $set: { status: RECIPIENT_STATUS.PENDING }, $unset: { bounceReason: 1 } }
+        );
+        await CampaignService.incrementStats(campaignId, {
+            'stats.pending': failedRecipients.length,
+            'stats.failed': -failedRecipients.length
+        });
+        campaign.status = CAMPAIGN_STATUS.SENDING;
+        await campaign.save();
+        await CampaignSendService.enqueueRecipients(campaign, failedRecipients, userId);
+
+        return campaign;
+    },
+
+    resendCampaign: async (campaignId, userId) => {
+        const campaign = await CampaignService.findByIdAndUserId(campaignId, userId);
+        if (!campaign) throw new Error(Message.DATA_NOT_FOUND);
+        if (![CAMPAIGN_STATUS.COMPLETED, CAMPAIGN_STATUS.FAILED].includes(campaign.status)) {
+            throw new Error(Message.INVALID_STATUS);
+        }
+
+        const recipients = await CampaignService.getRecipients(campaignId, 1, 0, false);
+        if (recipients.length === 0) throw new Error(Message.DATA_NOT_FOUND);
+
+        await CampaignRecipient.updateMany(
+            { campaignId: campaign._id },
+            {
+                $set: { status: RECIPIENT_STATUS.PENDING },
+                $unset: { sentAt: 1, bounceReason: 1, bouncedAt: 1, providerMessageId: 1 }
+            }
+        );
+        campaign.status = CAMPAIGN_STATUS.SENDING;
+        campaign.stats.total = recipients.length;
+        campaign.stats.pending = recipients.length;
+        campaign.stats.sent = 0;
+        campaign.stats.delivered = 0;
+        campaign.stats.opened = 0;
+        campaign.stats.clicked = 0;
+        campaign.stats.bounced = 0;
+        campaign.stats.failed = 0;
+        campaign.stats.unsubscribed = 0;
+        await campaign.save();
+        await CampaignSendService.enqueueRecipients(campaign, recipients, userId);
+
+        return campaign;
     }
 };
 

@@ -4,6 +4,7 @@ const sendEmail = require('../helpers/email.provider');
 const { replaceTemplateVariables, cleanEmailHtml } = require('../helpers/template.helper');
 const CampaignService = require('./campaign.services');
 const { CAMPAIGN_STATUS, RECIPIENT_STATUS } = require('../constants/campaign.constants');
+const Message = require('../helpers/constant.message');
 const SettingsService = require('./setting.services');
 const { ObjectId } = require('mongodb');
 
@@ -85,10 +86,14 @@ const handleEmailJobFailure = async (recipientId, campaignId) => {
         status: RECIPIENT_STATUS.FAILED
     });
 
-    await CampaignService.incrementStats(campaignId, {
+    const updatedCampaign = await CampaignService.incrementStats(campaignId, {
         'stats.failed': 1,
         'stats.pending': -1
     });
+
+    if (updatedCampaign?.status !== CAMPAIGN_STATUS.FAILED) {
+        await CampaignService.updateRecord(campaignId, { status: CAMPAIGN_STATUS.FAILED });
+    }
 };
 
 module.exports = {
