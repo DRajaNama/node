@@ -1,5 +1,12 @@
+const { CAMPAIGN_TYPE } = require('../constants/campaign.constants');
+
 const campaignCreateValidation = (data) => {
     const errors = {};
+
+    const campaignType = data.type ?? CAMPAIGN_TYPE.EMAIL;
+    if (!Object.values(CAMPAIGN_TYPE).includes(campaignType)) {
+        errors.type = 'Invalid campaign type';
+    }
 
     if (!data.name || data.name.trim() === '') {
         errors.name = 'Campaign name is required';
@@ -31,7 +38,7 @@ const campaignCreateValidation = (data) => {
         errors.contentEditor = 'Invalid content editor';
     }
 
-    if (!data.listIds || data.listIds.length === 0) {
+    if (data.type === 'email' && (!data.listIds || data.listIds.length === 0)) {
         errors.listIds = 'At least one list is required';
     }
 

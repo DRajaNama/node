@@ -24,10 +24,15 @@ const LeadController = {
       const limit = parseInt(req.query.limit) || 10;
       const records = await LeadService.getAllRecord(filter, page, limit);
       const total = await LeadService.getAllRecord({ ...filter, countOnly: true });
+      const unsubscribed = await LeadService.getAllRecord({
+        ...filter,
+        isUnsubscribed: true,
+        countOnly: true
+      });
       res.send({
         data: records,
         message: Message.DATA_FOUND,
-        meta: { page, limit, total },
+        meta: { page, limit, total, unsubscribed },
       });
     } catch (error) {
       logger.error(Message.LOG_END + ' - LeadController GetAll error', error);

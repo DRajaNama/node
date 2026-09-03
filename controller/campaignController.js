@@ -1,13 +1,19 @@
 const { campaignCreateValidation } = require('../validations/campaign.validations');
 const CampaignService = require('../services/campaign.services');
+const { CampaignServiceError } = CampaignService;
 const CampaignSendService = require('../services/campaignSend.services');
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
 const { ObjectId } = require('mongodb');
-const { CAMPAIGN_STATUS, SENDABLE_STATUSES } = require('../constants/campaign.constants');
+const {
+    CAMPAIGN_TYPE,
+    CAMPAIGN_STATUS,
+    SENDABLE_STATUSES
+} = require('../constants/campaign.constants');
 const Template = require('../models/template.model');
 
 const CONTROLLER = Message.CAMPAIGN_CONTROLLER;
+const CAMPAIGN_TYPES = Object.values(CAMPAIGN_TYPE);
 
 const logStart = (action, meta = {}) => logger.info(`${Message.LOG_START} - ${CONTROLLER}${action}`, meta);
 const logEnd = (action, meta = {}) => logger.info(`${Message.LOG_END} - ${CONTROLLER}${action}${Message.SUCCESS}`, meta);
@@ -45,6 +51,29 @@ const handleServerError = (res, action, error) => {
     res.status(500).send({ data: null, message: Message.SERVER_ERROR });
 };
 
+const currentCampaignType = (campaign) => (
+    campaign?.status === CAMPAIGN_STATUS.AUTOMATION
+        ? CAMPAIGN_TYPE.AUTOMATION
+        : campaign?.type || CAMPAIGN_TYPE.EMAIL
+);
+
+const statusForNewCampaign = (type) => (
+    type === CAMPAIGN_TYPE.AUTOMATION
+        ? CAMPAIGN_STATUS.AUTOMATION
+        : CAMPAIGN_STATUS.DRAFT
+);
+
+const isAutomationCampaign = (campaign) => (
+    currentCampaignType(campaign) === CAMPAIGN_TYPE.AUTOMATION
+);
+
+const rejectAutomationLifecycleAction = (campaign, res, action) => {
+    if (!isAutomationCampaign(campaign)) return false;
+    logError(action, { campaignId: campaign._id, status: campaign.status, type: campaign.type });
+    res.status(400).send({ data: null, message: Message.INVALID_STATUS });
+    return true;
+};
+
 const saveCampaignEmailTemplate = async (body, userId, existingTemplateId = null) => {
     if (body.contentEditor !== 'ckeditor') return body;
     const html = String(body.emailHtml || '').trim();
@@ -77,6 +106,9 @@ const CampaignController = {
     create: async (req, res) => {
         logStart(Message.CREATE_ATTEMPT, req.body);
         try {
+            req.body.type = req.body.type ?? CAMPAIGN_TYPE.EMAIL;
+            req.body.status = statusForNewCampaign(req.body.type);
+
             const { errors, isValid } = campaignCreateValidation(req.body);
             if (!isValid) {
                 logError(Message.CREATE_ATTEMPT, errors);
@@ -128,6 +160,21 @@ const CampaignController = {
             const campaign = await getOwnedCampaign(req, res, Message.UPDATE_RECORD_ATTEMPT);
             if (!campaign) return;
 
+            const existingType = currentCampaignType(campaign);
+            const nextType = Object.prototype.hasOwnProperty.call(req.body, 'type')
+                ? req.body.type
+                : existingType;
+            if (!CAMPAIGN_TYPES.includes(nextType)) {
+                return res.status(400).send({ errors: { type: 'Invalid campaign type' } });
+            }
+
+            req.body.type = nextType;
+            req.body.status = nextType === CAMPAIGN_TYPE.AUTOMATION
+                ? CAMPAIGN_STATUS.AUTOMATION
+                : existingType === CAMPAIGN_TYPE.AUTOMATION
+                    ? CAMPAIGN_STATUS.DRAFT
+                    : campaign.status;
+
             await saveCampaignEmailTemplate(req.body, req.userId, campaign.templateId?._id || campaign.templateId);
             const record = await CampaignService.updateRecord(req.params.id, req.body);
             logEnd(Message.UPDATE_RECORD_ATTEMPT, { campaignId: req.params.id });
@@ -143,10 +190,13 @@ const CampaignController = {
             const campaign = await getOwnedCampaign(req, res, Message.DELETE_RECORD_ATTEMPT);
             if (!campaign) return;
 
-            await CampaignService.deleteRecord(campaign._id);
+            await CampaignService.deleteRecord(campaign._id, req.userId);
             logEnd(Message.DELETE_RECORD_ATTEMPT, { campaignId: req.params.id });
             res.send({ data: null, message: Message.RECORD_DELETED });
         } catch (error) {
+            if (error instanceof CampaignServiceError) {
+                return res.status(error.statusCode).send({ data: null, message: error.message });
+            }
             handleServerError(res, Message.DELETE_RECORD_ATTEMPT, error);
         }
     },
@@ -189,6 +239,8 @@ const CampaignController = {
             const campaign = await getOwnedCampaign(req, res, Message.SEND_CAMPAIGN_ATTEMPT);
             if (!campaign) return;
 
+            if (rejectAutomationLifecycleAction(campaign, res, Message.SEND_CAMPAIGN_ATTEMPT)) return;
+
             if (!SENDABLE_STATUSES.includes(campaign.status)) {
                 logError(Message.SEND_CAMPAIGN_ATTEMPT, { status: campaign.status });
                 return res.status(400).send({ data: null, message: Message.INVALID_STATUS });
@@ -213,6 +265,8 @@ const CampaignController = {
             const campaign = await getOwnedCampaign(req, res, Message.PAUSE_CAMPAIGN_ATTEMPT);
             if (!campaign) return;
 
+            if (rejectAutomationLifecycleAction(campaign, res, Message.PAUSE_CAMPAIGN_ATTEMPT)) return;
+
             const record = await CampaignService.updateStatus(
                 req.params.id,
                 req.userId,
@@ -231,6 +285,8 @@ const CampaignController = {
             const campaign = await getOwnedCampaign(req, res, Message.RESUME_CAMPAIGN_ATTEMPT);
             if (!campaign) return;
 
+            if (rejectAutomationLifecycleAction(campaign, res, Message.RESUME_CAMPAIGN_ATTEMPT)) return;
+
             const record = await CampaignService.updateStatus(
                 req.params.id,
                 req.userId,
@@ -248,6 +304,8 @@ const CampaignController = {
         try {
             const campaign = await getOwnedCampaign(req, res, Message.CANCEL_CAMPAIGN_ATTEMPT);
             if (!campaign) return;
+
+            if (rejectAutomationLifecycleAction(campaign, res, Message.CANCEL_CAMPAIGN_ATTEMPT)) return;
 
             const record = await CampaignService.updateStatus(
                 req.params.id,

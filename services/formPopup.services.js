@@ -20,6 +20,16 @@ const FormPopupService = {
     return FormPopup.findOne({ _id: id, status: 'published' });
   },
 
+  incrementLeads: async (id) => {
+    return FormPopup.findByIdAndUpdate(id, { $inc: { 'stats.leads': 1 } }, { new: true });
+  },
+
+  incrementUnsubscribed: async (counts) => {
+    return Promise.all(counts.map(([id, count]) =>
+      FormPopup.findByIdAndUpdate(id, { $inc: { 'stats.unsubscribed': count } }, { new: true })
+    ));
+  },
+
   getAllRecord: async (filter = {}, page = 1, limit = 10, format = {}) => {
     const countOnly = filter.countOnly;
     delete filter.countOnly;

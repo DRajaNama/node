@@ -1,9 +1,18 @@
 const Campaign = require('../models/campaign.model');
 const CampaignRecipient = require('../models/campaignRecipient.model');
 const CampaignEvent = require('../models/campaignEvent.model');
+const Automation = require('../models/automation.model');
 const Message = require('../helpers/constant.message');
 const { ObjectId } = require('mongodb');
 const crypto=require("crypto");
+
+class CampaignServiceError extends Error {
+    constructor(message, statusCode = 400) {
+        super(message);
+        this.name = 'CampaignServiceError';
+        this.statusCode = statusCode;
+    }
+}
 
 const CampaignService = {
 
@@ -109,14 +118,26 @@ const CampaignService = {
         return record;
     },
 
-    deleteRecord: async (id) => {
-        const record = await Campaign.findById(id);
+    deleteRecord: async (id, userId) => {
+        const record = await Campaign.findOne({ _id: id, userId });
 
         if (!record) {
             throw new Error(Message.DATA_NOT_FOUND);
         }
 
-        await Campaign.deleteOne({ _id: id });
+        const linkedAutomation = await Automation.exists({
+            userId: new ObjectId(userId),
+            actionType: 'SEND_EMAIL_CAMPAIGN',
+            'actionConfig.campaignId': id.toString(),
+        });
+
+        if (linkedAutomation) {
+            throw new CampaignServiceError(
+                'Campaign is linked to an automation. Unlink it before deleting.'
+            );
+        }
+
+       await Campaign.deleteOne({ _id: id });
     },
 
     findByQuery: async (query) => {
@@ -183,6 +204,11 @@ const CampaignService = {
                         $sum: {
                             $cond: [{ $eq: ['$status', 'failed'] }, 1, 0]
                         }
+                    },
+                    unsubscribed: {
+                        $sum: {
+                            $cond: [{ $eq: ['$status', 'unsubscribed'] }, 1, 0]
+                        }
                     }
                 }
             }
@@ -226,3 +252,4 @@ const CampaignService = {
 };
 
 module.exports = CampaignService;
+module.exports.CampaignServiceError = CampaignServiceError;

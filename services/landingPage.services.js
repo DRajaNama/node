@@ -60,6 +60,12 @@ const LandingPageService = {
     return LandingPage.findByIdAndUpdate(id, { $inc: { 'stats.leads': 1 } }, { new: true });
   },
 
+  incrementUnsubscribed: async (counts) => {
+    return Promise.all(counts.map(([id, count]) =>
+      LandingPage.findByIdAndUpdate(id, { $inc: { 'stats.unsubscribed': count } }, { new: true })
+    ));
+  },
+
   duplicateRecord: async (record, userId) => {
     const copy = new LandingPage({
       userId,

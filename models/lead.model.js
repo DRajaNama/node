@@ -23,6 +23,7 @@ const leadSchema = new mongoose.Schema(
     firstName: { type: String, default: '', trim: true },
     lastName: { type: String, default: '', trim: true },
     email: { type: String, default: '', trim: true, lowercase: true },
+    isUnsubscribed: { type: Boolean, default: false, index: true },
     phone: { type: String, default: '', trim: true },
     fields: {
       type: mongoose.Schema.Types.Mixed,

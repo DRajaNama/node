@@ -4,6 +4,7 @@ const AutomationExecution = require('../models/automationExecution.model');
 const Campaign = require('../models/campaign.model');
 const Settings = require('../models/settings.model');
 const AutomationConfigService = require('./automationConfig.services');
+const { CAMPAIGN_STATUS } = require('../constants/campaign.constants');
 const {
   AUTOMATION_STATUS,
   AUTOMATION_TRIGGER,
@@ -190,8 +191,14 @@ const AutomationService = {
     if (!mongoose.isValidObjectId(actionConfig?.campaignId)) {
       throw new AutomationServiceError('Email campaign is invalid');
     }
-    const exists = await Campaign.exists({ _id: actionConfig.campaignId, userId });
-    if (!exists) throw new AutomationServiceError('Email campaign was not found');
+    const exists = await Campaign.exists({
+      _id: actionConfig.campaignId,
+      userId,
+      status: CAMPAIGN_STATUS.AUTOMATION,
+    });
+    if (!exists) {
+      throw new AutomationServiceError('Email campaign is not available for automation');
+    }
   },
 
   getExecutions: async (automationId, userId, page = 1, limit = 10, status = null) => {
@@ -216,8 +223,8 @@ const AutomationService = {
 
   getOptions: async (userId) => {
     const [campaigns, smtpConfigured] = await Promise.all([
-      Campaign.find({ userId })
-        .select('_id name subject status fromName fromEmail')
+      Campaign.find({ userId, status: CAMPAIGN_STATUS.AUTOMATION })
+        .select('_id name subject type status fromName fromEmail')
         .sort({ createdAt: -1 })
         .lean(),
       Settings.exists({ user: userId, 'smtp.host': { $nin: ['', null] } }),

@@ -38,6 +38,11 @@ const listSchema = new mongoose.Schema(
             default: 0
         },
 
+        unsubscribedCount: {
+            type: Number,
+            default: 0
+        },
+
         isArchived: {
             type: Boolean,
             default: false,

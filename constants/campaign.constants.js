@@ -1,12 +1,18 @@
-const CAMPAIGN_STATUS = {
+const CAMPAIGN_TYPE = Object.freeze({
+    EMAIL: 'email',
+    AUTOMATION: 'automation'
+});
+
+const CAMPAIGN_STATUS = Object.freeze({
     DRAFT: 'draft',
+    AUTOMATION: 'automation',
     SCHEDULED: 'scheduled',
     PROCESSING: 'processing',
     SENDING: 'sending',
     PAUSED: 'paused',
     COMPLETED: 'completed',
     CANCELLED: 'cancelled'
-};
+});
 
 const SENDABLE_STATUSES = [
     CAMPAIGN_STATUS.DRAFT,
@@ -29,6 +35,7 @@ const RECIPIENT_STATUS = {
 const EMAIL_QUEUE_NAME = 'email-send';
 
 module.exports = {
+    CAMPAIGN_TYPE,
     CAMPAIGN_STATUS,
     SENDABLE_STATUSES,
     RECIPIENT_STATUS,

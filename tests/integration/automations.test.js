@@ -62,6 +62,20 @@ const webhookPayload = (overrides = {}) => ({
   ...overrides,
 });
 
+const emailCampaignPayload = (campaignId, overrides = {}) => ({
+  name: 'New Lead Campaign Action',
+  description: 'Send the automation-only campaign to each new lead.',
+  status: 'ACTIVE',
+  triggerType: 'NEW_LEAD',
+  conditions: { type: 'all', logic: 'AND', rules: [] },
+  actionType: 'SEND_EMAIL_CAMPAIGN',
+  actionConfig: {
+    campaignId: String(campaignId),
+    delayMinutes: 0,
+  },
+  ...overrides,
+});
+
 const createViaApi = async (payload = emailAlertPayload(), token = customerToken) =>
   request(app).post('/api/automations').set(authHeader(token)).send(payload);
 
@@ -296,6 +310,41 @@ describe('automation API', () => {
     assert.match(unavailableSlack.body.message, /not available/i);
   });
 
+  it('rejects a regular email campaign as an automation action reference', async () => {
+    const regularCampaign = await Campaign.create({
+      userId: users.customer._id,
+      name: 'Regular newsletter',
+      subject: 'Monthly update',
+      fromName: 'Sales',
+      fromEmail: 'sales@example.com',
+      templateId: users.customer._id,
+      type: 'email',
+      status: 'draft',
+      listIds: [],
+    });
+
+    const rejected = await createViaApi(emailCampaignPayload(regularCampaign._id));
+    assert.equal(rejected.status, 400);
+    assert.match(rejected.body.message, /automation/i);
+    assert.equal(await Automation.countDocuments(), 0);
+
+    const automationCampaign = await Campaign.create({
+      userId: users.customer._id,
+      name: 'Automation welcome',
+      subject: 'Welcome',
+      fromName: 'Sales',
+      fromEmail: 'sales@example.com',
+      templateId: users.customer._id,
+      type: 'automation',
+      status: 'automation',
+      listIds: [],
+    });
+
+    const accepted = await createViaApi(emailCampaignPayload(automationCampaign._id));
+    assert.equal(accepted.status, 200);
+    assert.equal(accepted.body.data.actionConfig.campaignId, String(automationCampaign._id));
+  });
+
   it('masks and preserves webhook secrets and copies ciphertext on duplicate', async () => {
     const created = await createViaApi(webhookPayload());
     assert.equal(created.status, 200);
@@ -383,6 +432,19 @@ describe('automation API', () => {
       fromName: 'Sales',
       fromEmail: 'sales@example.com',
       templateId: users.customer._id,
+      type: 'automation',
+      status: 'automation',
+      listIds: [],
+    });
+    await Campaign.create({
+      userId: users.customer._id,
+      name: 'Regular Customer Newsletter',
+      subject: 'Monthly update',
+      fromName: 'Sales',
+      fromEmail: 'sales@example.com',
+      templateId: users.customer._id,
+      type: 'email',
+      status: 'draft',
       listIds: [],
     });
     await Campaign.create({
@@ -392,6 +454,8 @@ describe('automation API', () => {
       fromName: 'Admin',
       fromEmail: 'admin@example.com',
       templateId: users.admin._id,
+      type: 'automation',
+      status: 'automation',
       listIds: [],
     });
     await Settings.create({
@@ -411,6 +475,7 @@ describe('automation API', () => {
     assert.equal(options.status, 200);
     assert.equal(options.body.data.smtpConfigured, true);
     assert.deepEqual(options.body.data.campaigns.map((item) => item._id), [String(campaign._id)]);
+    assert.equal(options.body.data.campaigns[0].status, 'automation');
     assert.equal(JSON.stringify(options.body).includes('smtp-password'), false);
     const slack = options.body.data.actions.find((action) => action.type === 'SEND_TO_SLACK');
     const webhook = options.body.data.actions.find((action) => action.type === 'TRIGGER_WEBHOOK');

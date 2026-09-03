@@ -375,7 +375,7 @@ test('webhook absolute deadline stops slow-drip responses', async () => {
   }
 });
 
-test('email alert and single-lead campaign actions reuse the user SMTP account', async () => {
+test('email alert and single-lead automation campaign actions reuse the user SMTP account', async () => {
   const userId = new mongoose.Types.ObjectId();
   await Settings.create({
     user: userId,
@@ -420,6 +420,8 @@ test('email alert and single-lead campaign actions reuse the user SMTP account',
       fromName: 'Campaign Bot',
       fromEmail: 'sender@example.com',
       templateId: template._id,
+      type: 'automation',
+      status: 'automation',
     });
     const graceContact = await Contact.create({
       userId,
@@ -485,8 +487,7 @@ test('email alert and single-lead campaign actions reuse the user SMTP account',
       }),
       (error) => error.code === 'CONTACT_SUPPRESSED' && error.retryable === false
     );
-    campaign.status = 'scheduled';
-    campaign.scheduledAt = new Date(Date.now() + 3600000);
+    campaign.status = 'draft';
     await campaign.save();
     await assert.rejects(
       executeEmailCampaign({

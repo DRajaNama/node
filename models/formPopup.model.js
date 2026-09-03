@@ -40,6 +40,10 @@ const formPopupSchema = new mongoose.Schema(
       trigger: { type: String, default: 'load' },
       closeButton: { type: Boolean, default: true },
     },
+    stats: {
+      leads: { type: Number, default: 0 },
+      unsubscribed: { type: Number, default: 0 },
+    },
     publishedAt: {
       type: Date,
       default: null,

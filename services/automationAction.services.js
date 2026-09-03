@@ -270,8 +270,8 @@ const executeEmailCampaign = async ({ automation, lead, execution }) => {
       retryable: false,
     });
   }
-  if (campaign.status !== CAMPAIGN_STATUS.SCHEDULED || campaign.status !== CAMPAIGN_STATUS.PAUSED || campaign.status !== CAMPAIGN_STATUS.CANCELLED) {
-    throw new AutomationActionError('Only a draft campaign can be sent by an automation.', {
+  if (campaign.status !== CAMPAIGN_STATUS.AUTOMATION) {
+    throw new AutomationActionError('Only an automation campaign can be sent by an automation.', {
       code: 'EMAIL_CAMPAIGN_NOT_SENDABLE',
       retryable: false,
     });

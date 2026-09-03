@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { CAMPAIGN_TYPE, CAMPAIGN_STATUS } = require('../constants/campaign.constants');
 
 const campaignSchema = new mongoose.Schema(
   {
@@ -13,6 +14,12 @@ const campaignSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true
+    },
+
+    type: {
+      type: String,
+      enum: Object.values(CAMPAIGN_TYPE),
+      default: CAMPAIGN_TYPE.EMAIL
     },
 
     subject: {
@@ -65,16 +72,12 @@ const campaignSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: [
-        "draft",
-        "scheduled",
-        "processing",
-        "sending",
-        "paused",
-        "completed",
-        "cancelled"
-      ],
-      default: "draft",
+      enum: Object.values(CAMPAIGN_STATUS),
+      default: function campaignStatusDefault() {
+        return this.type === CAMPAIGN_TYPE.AUTOMATION
+          ? CAMPAIGN_STATUS.AUTOMATION
+          : CAMPAIGN_STATUS.DRAFT;
+      },
       index: true
     },
 
@@ -168,6 +171,14 @@ const campaignSchema = new mongoose.Schema(
     versionKey: false
   }
 );
+
+campaignSchema.pre('validate', function enforceCampaignTypeStatus() {
+  if (this.type === CAMPAIGN_TYPE.AUTOMATION) {
+    this.status = CAMPAIGN_STATUS.AUTOMATION;
+  } else if (this.status === CAMPAIGN_STATUS.AUTOMATION) {
+    this.status = CAMPAIGN_STATUS.DRAFT;
+  }
+});
 
 campaignSchema.index({ userId: 1, status: 1 });
 campaignSchema.index({ scheduledAt: 1 });

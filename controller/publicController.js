@@ -10,6 +10,13 @@ const { leadSubmitValidation } = require('../validations/lead.validations');
 const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
 const AutomationDispatchService = require('../services/automationDispatch.services');
+const Contact = require('../models/contacts.model');
+const CampaignRecipient = require('../models/campaignRecipient.model');
+const CampaignEvent = require('../models/campaignEvent.model');
+const CampaignService = require('../services/campaign.services');
+const List = require('../models/list.model');
+const ListContact = require('../models/listContact.model');
+const Lead = require('../models/lead.model');
 
 const extractLeadFields = (body) => {
   const known = ['landingPageId', 'formPopupId', 'firstName', 'lastName', 'email', 'phone', 'source'];
@@ -149,6 +156,9 @@ const PublicController = {
       if (landingPage) {
         await LandingPageService.incrementLeads(landingPage._id);
       }
+      if (formPopup) {
+        await FormPopupService.incrementLeads(formPopup._id);
+      }
 
       res.send({ data: { _id: record._id }, message: 'Thank you! Your information has been submitted.' });
     } catch (error) {
@@ -239,10 +249,95 @@ const PublicController = {
     }
   },
 
-  unsubscribe:async (req,res)=>{
+  unsubscribe: async (req, res) => {
     try {
-      res.send({ data: '', message: Message.SUCCESS });
+      const email = String(req.params.email || '').trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).send({ data: null, message: 'A valid email address is required' });
+      }
+
+      const contactsToUnsubscribe = await Contact.find({
+        email,
+        isUnsubscribed: { $ne: true },
+        status: { $ne: 'unsubscribed' }
+      }).select('_id');
+      const contactIds = contactsToUnsubscribe.map((contact) => contact._id);
+
+      await Contact.updateMany(
+        { email },
+        { $set: { isUnsubscribed: true, status: 'unsubscribed' } }
+      );
+
+      if (contactIds.length > 0) {
+        const listMemberships = await ListContact.find({ contactId: { $in: contactIds } })
+          .select('listId contactId');
+        const listCounts = new Map();
+        listMemberships.forEach(({ listId }) => {
+          const key = listId.toString();
+          listCounts.set(key, (listCounts.get(key) || 0) + 1);
+        });
+        await List.bulkWrite([...listCounts].map(([listId, count]) => ({
+          updateOne: {
+            filter: { _id: listId },
+            update: { $inc: { unsubscribedCount: count } }
+          }
+        })));
+      }
+
+      const leadsToUnsubscribe = await Lead.find({
+        email,
+        isUnsubscribed: { $ne: true }
+      }).select('_id landingPageId formPopupId');
+      if (leadsToUnsubscribe.length > 0) {
+        await Lead.updateMany(
+          { _id: { $in: leadsToUnsubscribe.map((lead) => lead._id) } },
+          { $set: { isUnsubscribed: true } }
+        );
+
+        const landingPageCounts = new Map();
+        const formPopupCounts = new Map();
+        leadsToUnsubscribe.forEach((lead) => {
+          if (lead.landingPageId) {
+            const key = lead.landingPageId.toString();
+            landingPageCounts.set(key, (landingPageCounts.get(key) || 0) + 1);
+          }
+          if (lead.formPopupId) {
+            const key = lead.formPopupId.toString();
+            formPopupCounts.set(key, (formPopupCounts.get(key) || 0) + 1);
+          }
+        });
+        await Promise.all([
+          LandingPageService.incrementUnsubscribed([...landingPageCounts]),
+          FormPopupService.incrementUnsubscribed([...formPopupCounts])
+        ]);
+      }
+
+      const recipients = await CampaignRecipient.find({ email, status: { $ne: 'unsubscribed' } })
+        .select('_id campaignId');
+      if (recipients.length > 0) {
+        await CampaignRecipient.updateMany(
+          { _id: { $in: recipients.map((recipient) => recipient._id) } },
+          { $set: { status: 'unsubscribed' } }
+        );
+
+        await CampaignEvent.insertMany(recipients.map((recipient) => ({
+          campaignId: recipient.campaignId,
+          recipientId: recipient._id,
+          event: 'unsubscribed',
+          ip: req.ip,
+          userAgent: req.headers['user-agent']
+        })));
+
+        await Promise.all(recipients.map((recipient) =>
+          CampaignService.incrementStats(recipient.campaignId, { 'stats.unsubscribed': 1 })
+        ));
+      }
+
+      res.status(200).type('html').send(`<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Unsubscribed</title></head>
+<body style="margin:0;padding:48px 20px;background:#f8fafc;color:#172033;font-family:Arial,sans-serif;text-align:center"><main><h1>You have been unsubscribed</h1><p>You will no longer receive marketing emails at this address.</p></main></body></html>`);
     } catch (error) {
+      logger.error('Failed to unsubscribe contact', { error: error.message });
       res.status(500).send({ data: null, message: Message.SERVER_ERROR });
     }
   }
