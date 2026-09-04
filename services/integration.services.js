@@ -91,9 +91,12 @@ const IntegrationService = {
     if (!config) throw new Error('An active Mailchimp integration is required.');
     const email = String(lead?.email || '').trim().toLowerCase();
     if (!email) throw new Error('The lead does not have an email address.');
-    const merge_fields = {};
-    if (lead.firstName) merge_fields.FNAME = lead.firstName;
-    if (lead.lastName) merge_fields.LNAME = lead.lastName;
+    const merge_fields = {
+        FNAME:'Unknown',
+        LNAME:'Unknown'
+    };
+    if (lead.firstName) merge_fields.FNAME = lead.firstName || 'Unknown';
+    if (lead.lastName) merge_fields.LNAME = lead.lastName || 'Unknown';
     const response = await request(mailchimpUrl(config, `/lists/${encodeURIComponent(audienceId)}/members/${require('crypto').createHash('md5').update(email).digest('hex')}`), {
       method: 'PUT',
       headers: { Authorization: basic('any', config.apiKey) },
