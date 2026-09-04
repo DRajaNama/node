@@ -7,6 +7,9 @@ const { CAMPAIGN_STATUS, RECIPIENT_STATUS } = require('../constants/campaign.con
 const Message = require('../helpers/constant.message');
 const SettingsService = require('./setting.services');
 const { ObjectId } = require('mongodb');
+const UserNotificationService = require('./userNotification.services');
+const IntegrationService = require('./integration.services');
+const RealtimeService = require('./realtime.services');
 
 const SKIPPABLE_CAMPAIGN_STATUSES = [
     CAMPAIGN_STATUS.PAUSED,
@@ -19,7 +22,8 @@ const processEmailJob = async (data) => {
             user: new ObjectId(data.userId)
         }
     }];
-    const smtp = await SettingsService.getUserSMTP(query);
+    const emailIntegration = await IntegrationService.getActiveEmail(data.userId);
+    const smtp = emailIntegration?.provider === 'smtp' ? emailIntegration.config : null;
     if (!smtp) {
         throw new Error(Message.SMTP_NOT_FOUND);
     }
@@ -76,6 +80,17 @@ const processEmailJob = async (data) => {
         await CampaignService.updateRecord(data.campaignId, {
             status: CAMPAIGN_STATUS.COMPLETED
         });
+        RealtimeService.emitToUser(data.userId, 'campaign:updated', {
+            campaignId: String(campaign._id),
+            status: CAMPAIGN_STATUS.COMPLETED,
+        });
+        await UserNotificationService.create({
+            userId: data.userId,
+            title: 'Campaign completed',
+            message: `Your campaign "${campaign.name}" has finished sending.`,
+            type: 'campaign',
+            link: `/campaign/${campaign._id}`,
+        }).then((notification) => RealtimeService.emitToUser(data.userId, 'notification', notification)).catch(() => undefined);
     }
 
     return { skipped: false };
@@ -93,6 +108,20 @@ const handleEmailJobFailure = async (recipientId, campaignId) => {
 
     if (updatedCampaign?.status !== CAMPAIGN_STATUS.FAILED) {
         await CampaignService.updateRecord(campaignId, { status: CAMPAIGN_STATUS.FAILED });
+        const campaign = await Campaign.findById(campaignId).select('name userId');
+        if (campaign) {
+            RealtimeService.emitToUser(campaign.userId, 'campaign:updated', {
+                campaignId: String(campaign._id),
+                status: CAMPAIGN_STATUS.FAILED,
+            });
+            await UserNotificationService.create({
+                userId: campaign.userId,
+                title: 'Campaign failed',
+                message: `Your campaign "${campaign.name}" could not complete.`,
+                type: 'campaign',
+                link: `/campaign/${campaign._id}`,
+            }).then((notification) => RealtimeService.emitToUser(campaign.userId, 'notification', notification)).catch(() => undefined);
+        }
     }
 };
 

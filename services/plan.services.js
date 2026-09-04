@@ -7,6 +7,8 @@ const {
   getRegistryEntry,
 } = require('../config/entitlements.registry');
 
+const ACTIVE_STATUSES = ['trial', 'active', 'past_due', 'paused'];
+
 const buildEntitlementsFromRegistry = (overrides = {}) =>
   REGISTRY.map((entry) => {
     const base = getDefaultEntitlement(entry);
@@ -27,6 +29,7 @@ const STARTER_ENTITLEMENTS = {
   lead_capture_forms: { type: 'limit', enabled: true, limit: 3, isUnlimited: false },
   team_members: { type: 'limit', enabled: true, limit: 1, isUnlimited: false },
   automation_workflows: { type: 'limit', enabled: true, limit: 0, isUnlimited: false },
+  integrations: { type: 'limit', enabled: true, limit: 1, isUnlimited: false },
   marketing_automation: { type: 'boolean', enabled: false },
   ab_testing: { type: 'boolean', enabled: false },
   advanced_reporting: { type: 'boolean', enabled: true },
@@ -41,6 +44,7 @@ const STANDARD_ENTITLEMENTS = {
   custom_landing_pages: { limit: 1 },
   lead_capture_forms: { limit: 10 },
   automation_workflows: { type: 'limit', enabled: true, isUnlimited: true },
+  integrations: { limit: 5 },
   marketing_automation: { type: 'boolean', enabled: true },
   ab_testing: { type: 'boolean', enabled: true },
   advanced_reporting: { type: 'boolean', enabled: true },
@@ -62,6 +66,7 @@ const PROFESSIONAL_ENTITLEMENTS = {
   contact_scoring: { type: 'boolean', enabled: true },
   ai_segmentation: { type: 'boolean', enabled: true },
   multi_user_access: { type: 'boolean', enabled: true },
+  integrations: { limit: 15 },
 };
 
 const ENTERPRISE_ENTITLEMENTS = {
@@ -81,6 +86,7 @@ const ENTERPRISE_ENTITLEMENTS = {
   multi_user_access: { type: 'boolean', enabled: true },
   multi_account: { type: 'boolean', enabled: true },
   custom_objects: { type: 'boolean', enabled: true },
+  integrations: { isUnlimited: true },
 };
 
 const mergeEntitlements = (baseOverrides) => {
@@ -214,6 +220,7 @@ const PlanService = {
     const count = await Plan.countDocuments();
     if (count > 0) {
       await this.ensureAutomationWorkflowEntitlements();
+      await this.ensureIntegrationEntitlements();
       return;
     }
 
@@ -271,6 +278,25 @@ const PlanService = {
     ];
 
     await Plan.insertMany(defaults);
+  },
+
+  async ensureIntegrationEntitlements() {
+    const defaults = { starter: { limit: 1 }, standard: { limit: 5 }, professional: { limit: 15 }, enterprise: { isUnlimited: true } };
+    const plans = await Plan.find({});
+    for (const plan of plans) {
+      if (plan.entitlements.some((entitlement) => entitlement.key === 'integrations')) continue;
+      const override = defaults[plan.slug] || { limit: 1 };
+      plan.entitlements.push({ key: 'integrations', type: 'limit', enabled: true, limit: override.limit || 0, isUnlimited: override.isUnlimited === true, period: null });
+      await plan.save();
+    }
+    const subscriptions = await Subscription.find({ status: { $in: ACTIVE_STATUSES } });
+    for (const subscription of subscriptions) {
+      if (!subscription.planSnapshot?.entitlements || subscription.planSnapshot.entitlements.some((entitlement) => entitlement.key === 'integrations')) continue;
+      const plan = await Plan.findById(subscription.planId).select('slug');
+      const override = defaults[plan?.slug] || { limit: 1 };
+      subscription.planSnapshot.entitlements.push({ key: 'integrations', type: 'limit', enabled: true, limit: override.limit || 0, isUnlimited: override.isUnlimited === true, period: null });
+      await subscription.save();
+    }
   },
 
   async listPublicPlans() {

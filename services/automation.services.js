@@ -3,6 +3,7 @@ const Automation = require('../models/automation.model');
 const AutomationExecution = require('../models/automationExecution.model');
 const Campaign = require('../models/campaign.model');
 const Settings = require('../models/settings.model');
+const IntegrationService = require('./integration.services');
 const AutomationConfigService = require('./automationConfig.services');
 const { CAMPAIGN_STATUS } = require('../constants/campaign.constants');
 const {
@@ -227,7 +228,7 @@ const AutomationService = {
         .select('_id name subject type status fromName fromEmail')
         .sort({ createdAt: -1 })
         .lean(),
-      Settings.exists({ user: userId, 'smtp.host': { $nin: ['', null] } }),
+      IntegrationService.getActiveEmail(userId),
     ]);
 
     return {
@@ -247,7 +248,7 @@ const AutomationService = {
       },
       actions: AUTOMATION_ACTION_DEFINITIONS.map((definition) => ({ ...definition })),
       campaigns,
-      smtpConfigured: !!smtpConfigured,
+      smtpConfigured: smtpConfigured?.provider === 'smtp',
       webhook: {
         methods: Object.values(AUTOMATION_WEBHOOK_METHOD),
         triggerModes: Object.values(AUTOMATION_TRIGGER_MODE),

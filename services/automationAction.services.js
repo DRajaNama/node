@@ -19,6 +19,7 @@ const {
 } = require('./automationConfig.services');
 const { AUTOMATION_ACTION } = require('../constants/automation.constants');
 const { CAMPAIGN_STATUS, RECIPIENT_STATUS } = require('../constants/campaign.constants');
+const IntegrationService = require('./integration.services');
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ALLOWED_WEBHOOK_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
@@ -89,13 +90,14 @@ const requireLeadEmail = (lead) => {
 
 const getUserSettings = async (userId) => {
   const settings = await Settings.findOne({ user: userId }).lean();
-  if (!settings?.smtp?.host || !settings?.smtp?.port) {
-    throw new AutomationActionError('SMTP settings are not configured.', {
+  const emailIntegration = await IntegrationService.getActiveEmail(userId);
+  if (!emailIntegration || emailIntegration.provider !== 'smtp' || !emailIntegration.config?.host || !emailIntegration.config?.port) {
+    throw new AutomationActionError('An active SMTP integration is not configured.', {
       code: 'SMTP_NOT_CONFIGURED',
       retryable: false,
     });
   }
-  return settings;
+  return { ...settings, smtp: emailIntegration.config };
 };
 
 const checkEmailQuota = async (userId, count) => {
@@ -398,6 +400,24 @@ const executeEmailAlert = async ({ automation, lead }) => {
   };
 };
 
+const executeMailchimpLead = async ({ automation, lead }) => {
+  const config = automation.actionConfig || {};
+  try {
+    const result = await IntegrationService.addMailchimpLead(
+      automation.userId,
+      config.audienceId,
+      lead,
+      config.statusIfNew || 'subscribed'
+    );
+    return { responseStatus: 200, metadata: result };
+  } catch (error) {
+    throw new AutomationActionError(error.message || 'The lead could not be added to Mailchimp.', {
+      code: 'MAILCHIMP_LEAD_SYNC_FAILED',
+      retryable: false,
+    });
+  }
+};
+
 const parseIpv4 = (address) => address.split('.').map(Number);
 
 const isBlockedIp = (address) => {
@@ -668,6 +688,9 @@ const executeAction = async ({ automation, lead, execution }) => {
   if (automation.actionType === AUTOMATION_ACTION.SEND_EMAIL_ALERT) {
     return executeEmailAlert({ automation, lead });
   }
+  if (automation.actionType === AUTOMATION_ACTION.MAILCHIMP_ADD_LEAD) {
+    return executeMailchimpLead({ automation, lead });
+  }
   if (automation.actionType === AUTOMATION_ACTION.TRIGGER_WEBHOOK) {
     return executeWebhook({ automation, lead, execution });
   }
@@ -685,6 +708,7 @@ module.exports = {
   assertSafeWebhookUrl,
   executeEmailCampaign,
   executeEmailAlert,
+  executeMailchimpLead,
   executeWebhook,
   executeAction,
 };

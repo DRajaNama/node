@@ -125,6 +125,15 @@ const validateEmailAlert = (config, errors) => {
   if (isMissing(config.message)) errors['actionConfig.message'] = 'Email message is required';
 };
 
+const validateMailchimp = (config, errors) => {
+  if (isMissing(config.audienceId) || !/^[a-f0-9]{8,64}$/i.test(String(config.audienceId))) {
+    errors['actionConfig.audienceId'] = 'A valid Mailchimp audience is required';
+  }
+  if (config.statusIfNew !== undefined && !['subscribed', 'pending'].includes(config.statusIfNew)) {
+    errors['actionConfig.statusIfNew'] = 'Mailchimp subscription status is invalid';
+  }
+};
+
 const validateCrm = (config, errors) => {
   if (isMissing(config.integrationId)) errors['actionConfig.integrationId'] = 'CRM integration is required';
   if (!Object.values(AUTOMATION_CRM_OPERATION).includes(config.operation)) {
@@ -205,6 +214,7 @@ const validateActionConfig = (actionType, config, errors, required) => {
   if (actionType === AUTOMATION_ACTION.SEND_EMAIL_CAMPAIGN) validateEmailCampaign(config, errors);
   if (actionType === AUTOMATION_ACTION.SEND_TO_SLACK) validateSlack(config, errors);
   if (actionType === AUTOMATION_ACTION.SEND_EMAIL_ALERT) validateEmailAlert(config, errors);
+  if (actionType === AUTOMATION_ACTION.MAILCHIMP_ADD_LEAD) validateMailchimp(config, errors);
   if (CRM_ACTIONS.has(actionType)) validateCrm(config, errors);
   if (actionType === AUTOMATION_ACTION.TRIGGER_WEBHOOK) validateWebhook(config, errors);
 };

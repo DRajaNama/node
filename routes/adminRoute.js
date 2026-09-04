@@ -70,6 +70,7 @@ router.get('/settings/integrations/paypal', withPerm(PERMISSIONS.SETTINGS_VIEW),
 router.put('/settings/integrations/paypal', withPerm(PERMISSIONS.SETTINGS_MANAGE), AdminController.updatePayPalIntegration);
 router.post('/settings/integrations/paypal/test', withPerm(PERMISSIONS.SETTINGS_MANAGE), AdminController.testPayPalIntegration);
 router.get('/settings/theme', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.getThemeSettings);
+router.get('/settings/theme/palettes', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.getThemePalettes);
 router.put('/settings/theme', admin, superAdminMiddleware, AdminController.updateThemeSettings);
 router.post('/settings/theme/reset', admin, superAdminMiddleware, AdminController.resetThemeSettings);
 router.get('/security', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.getSecuritySettings);

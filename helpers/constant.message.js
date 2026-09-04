@@ -126,7 +126,8 @@ const Message = {
     INVALID_STATUS: "Invalid campaign status",
 
     // SMTP settings
-    SMTP_NOT_FOUND: 'SMTP credentials not found. Please add SMTP credentials first to continue.'
+    SMTP_NOT_FOUND: 'No active SMTP integration is configured. Connect SMTP in Integrations before sending email.',
+    SMTP_NOT_CONFIGURED: 'No active SMTP integration is configured. Connect SMTP in Integrations before sending email.'
 };
 
 module.exports = Message;

@@ -107,7 +107,7 @@ const AuthContoller = {
     },
     updateMe: async (req, res) => {
         try {
-            const { name, mobile, password, currentPassword } = req.body;
+            const { name, mobile, password, currentPassword, jobTitle, company, timezone } = req.body;
             if (password) {
                 const existing = await UserService.findUserById(req.userId, true);
                 if (!existing) {
@@ -117,10 +117,25 @@ const AuthContoller = {
                     return res.status(400).send({ data: null, message: 'Invalid current password' });
                 }
             }
-            const user = await UserService.updateProfile(req.userId, { name, mobile, password });
+            const user = await UserService.updateProfile(req.userId, {
+                name, mobile, password, jobTitle, company, timezone
+            });
             res.send({ data: { user }, message: Message.USER_UPDATED });
         } catch (error) {
             logger.error('updateMe error', error);
+            res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+        }
+    },
+    uploadAvatar: async (req, res) => {
+        try {
+            if (!req.file) {
+                return res.status(400).send({ data: null, message: 'A profile image is required.' });
+            }
+            const avatarUrl = `/uploads/profiles/${req.userId}/${req.file.filename}`;
+            const user = await UserService.updateProfile(req.userId, { avatarUrl });
+            res.send({ data: { user }, message: 'Profile image updated.' });
+        } catch (error) {
+            logger.error('uploadAvatar error', error);
             res.status(500).send({ data: null, message: Message.SERVER_ERROR });
         }
     },

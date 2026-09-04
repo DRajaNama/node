@@ -350,7 +350,11 @@ const AdminController = {
       await audit(req, 'Subscription Created', 'Subscription', data._id);
       res.send({ data, message: Message.RECODE_CREATED });
     } catch (error) {
-      res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+      const status = error.status || 500;
+      res.status(status).send({
+        data: null,
+        message: error.status ? error.message : 'Unable to assign plan.',
+      });
     }
   },
 
@@ -717,6 +721,11 @@ const AdminController = {
     } catch (error) {
       res.status(500).send({ data: null, message: Message.SERVER_ERROR });
     }
+  },
+
+  getThemePalettes: async (_req, res) => {
+    try { res.send({ data: await AdminService.getThemePalettes(), message: Message.SUCCESS }); }
+    catch { res.status(500).send({ data: null, message: Message.SERVER_ERROR }); }
   },
 
   updateThemeSettings: async (req, res) => {

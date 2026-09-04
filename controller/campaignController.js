@@ -48,6 +48,9 @@ const getOwnedCampaign = async (req, res, action) => {
 
 const handleServerError = (res, action, error) => {
     logError(action, error);
+    if (error?.code === 'SMTP_NOT_CONFIGURED') {
+        return res.status(400).send({ data: null, code: error.code, message: error.message });
+    }
     res.status(500).send({ data: null, message: Message.SERVER_ERROR });
 };
 

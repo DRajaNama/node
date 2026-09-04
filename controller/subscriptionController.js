@@ -6,6 +6,7 @@ const Subscription = require('../models/subscription.model');
 const Payment = require('../models/payment.model');
 const PayPal = require('../services/paypal.services');
 const PayPalEvent = require('../models/paypalWebhookEvent.model');
+const mongoose = require('mongoose');
 
 const SubscriptionController = {
   getMySubscription: async (req, res) => {
@@ -63,29 +64,109 @@ const SubscriptionController = {
 
   preparePayPal: async (req, res) => {
     try {
-      const plan = await Plan.findOne({ _id: req.body.planId, status: 'active', isPublic: true });
+      const requestedPlanId = req.body?.planId;
+      if (!mongoose.isValidObjectId(requestedPlanId)) {
+        return res.status(400).send({ data: null, message: 'A valid plan ID is required.' });
+      }
+      const plan = await Plan.findOne({ _id: requestedPlanId, status: 'active', isPublic: true });
       const chargeAmount = plan?.billingInterval === 'yearly' ? plan.yearlyPrice : plan?.monthlyPrice;
       if (!plan || chargeAmount <= 0 || !plan.paypalPlanId) return res.status(400).send({ data: null, message: 'This plan is not available for PayPal subscription.' });
+
+      const currentPayPal = await Subscription.findOne({
+        userId: req.userId,
+        status: { $in: ['active', 'past_due', 'paused'] },
+        paymentProvider: 'paypal',
+        externalSubscriptionId: { $ne: '' },
+      }).sort({ createdAt: -1 });
+
+      const config = await PayPal.config();
+      if (currentPayPal) {
+        if (String(currentPayPal.planId) === String(plan._id)) {
+          return res.status(409).send({ data: null, message: 'This is already your current PayPal plan.' });
+        }
+        return res.send({
+          data: {
+            mode: 'revise',
+            localSubscriptionId: currentPayPal._id,
+            paypalSubscriptionId: currentPayPal.externalSubscriptionId,
+            targetPlanId: plan._id,
+            paypalPlanId: plan.paypalPlanId,
+            clientId: config.clientId,
+            environment: config.env,
+          },
+          message: Message.SUCCESS,
+        });
+      }
+
       const duplicate = await Subscription.findOne({ userId: req.userId, planId: plan._id, status: { $in: ['pending', 'active', 'trial', 'past_due', 'paused'] }, paymentProvider: 'paypal' });
       if (duplicate) return res.status(409).send({ data: null, message: 'You already have a subscription in progress for this plan.' });
+      await Subscription.updateMany(
+        { userId: req.userId, status: 'pending', paymentProvider: 'paypal' },
+        { $set: { status: 'cancelled', cancelledAt: new Date() } }
+      );
       const pending = await SubscriptionService.createSubscriptionWithSnapshot({ userId: req.userId, planId: plan._id, status: 'pending', paymentProvider: 'paypal' });
-      const config = await PayPal.config();
-      res.send({ data: { localSubscriptionId: pending._id, paypalPlanId: plan.paypalPlanId, clientId: config.clientId, environment: config.env }, message: Message.SUCCESS });
-    } catch (error) { res.status(error.status || 500).send({ data: null, message: error.message || 'Unable to prepare PayPal checkout.' }); }
+      res.send({ data: { mode: 'create', localSubscriptionId: pending._id, targetPlanId: plan._id, paypalPlanId: plan.paypalPlanId, clientId: config.clientId, environment: config.env }, message: Message.SUCCESS });
+    } catch (error) { res.status(error.status || 500).send({ data: null, message: error.status ? error.message : 'Unable to prepare PayPal checkout.' }); }
   },
 
   verifyPayPal: async (req, res) => {
     try {
-      const local = await Subscription.findOne({ _id: req.body.localSubscriptionId, userId: req.userId, status: 'pending', paymentProvider: 'paypal' });
-      if (!local) return res.status(404).send({ data: null, message: 'Pending subscription not found.' });
-      const remote = await PayPal.getSubscription(req.body.subscriptionId);
-      const plan = await Plan.findById(local.planId);
-      if (remote.status !== 'ACTIVE' || remote.plan_id !== plan.paypalPlanId) return res.status(400).send({ data: null, message: 'PayPal subscription could not be verified.' });
-      await Subscription.updateMany({ userId: req.userId, status: { $in: ['active', 'trial', 'past_due', 'paused'] } }, { $set: { status: 'cancelled', cancelledAt: new Date() } });
-      local.status = 'active'; local.externalSubscriptionId = remote.id; local.startDate = new Date(remote.start_time || Date.now()); local.renewalDate = remote.billing_info?.next_billing_time || null; await local.save();
+      const localSubscriptionId = req.body?.localSubscriptionId;
+      const paypalSubscriptionId = req.body?.subscriptionId;
+      const targetPlanId = req.body?.planId;
+      if (!mongoose.isValidObjectId(localSubscriptionId) || !paypalSubscriptionId) {
+        return res.status(400).send({ data: null, message: 'Valid PayPal subscription details are required.' });
+      }
+      const local = await Subscription.findOne({ _id: localSubscriptionId, userId: req.userId, paymentProvider: 'paypal' });
+      if (!local) return res.status(404).send({ data: null, message: 'PayPal subscription not found.' });
+
+      const isNewSubscription = local.status === 'pending';
+      const isRevision = ['active', 'past_due', 'paused'].includes(local.status)
+        && local.externalSubscriptionId
+        && local.externalSubscriptionId === paypalSubscriptionId;
+      if (!isNewSubscription && !isRevision) {
+        return res.status(409).send({ data: null, message: 'This subscription can no longer be changed.' });
+      }
+      if (isRevision && !mongoose.isValidObjectId(targetPlanId)) {
+        return res.status(400).send({ data: null, message: 'A valid target plan ID is required.' });
+      }
+
+      const plan = isRevision
+        ? await Plan.findOne({ _id: targetPlanId, status: 'active', isPublic: true })
+        : await Plan.findById(local.planId);
+      if (!plan) return res.status(404).send({ data: null, message: 'Plan not found.' });
+
+      const remote = await PayPal.getSubscription(paypalSubscriptionId);
+      if (remote.id !== paypalSubscriptionId || remote.status !== 'ACTIVE' || remote.plan_id !== plan.paypalPlanId) return res.status(400).send({ data: null, message: 'PayPal subscription could not be verified.' });
+
+      const externalIdInUse = await Subscription.exists({
+        _id: { $ne: local._id },
+        externalSubscriptionId: remote.id,
+        paymentProvider: 'paypal',
+      });
+      if (externalIdInUse) return res.status(409).send({ data: null, message: 'PayPal subscription is already linked to another account.' });
+
+      if (isNewSubscription) {
+        await Subscription.updateMany(
+          { _id: { $ne: local._id }, userId: req.userId, status: { $in: ['pending', 'active', 'trial', 'past_due', 'paused'] } },
+          { $set: { status: 'cancelled', cancelledAt: new Date() } }
+        );
+        local.startDate = new Date(remote.start_time || Date.now());
+      } else {
+        local.planId = plan._id;
+        local.planSnapshot = PlanService.snapshotPlan(plan);
+      }
+      local.status = 'active';
+      local.externalSubscriptionId = remote.id;
+      local.renewalDate = remote.billing_info?.next_billing_time || null;
+      local.cancelledAt = null;
+      local.endDate = null;
+      local.cancelAtPeriodEnd = false;
+      local.trialEndsAt = null;
+      await local.save();
       await PlanService.updateSubscriberCounts();
-      res.send({ data: await local.populate('planId'), message: 'Subscription activated.' });
-    } catch (error) { res.status(error.status || 500).send({ data: null, message: 'Unable to verify PayPal subscription.' }); }
+      res.send({ data: await local.populate('planId'), message: isRevision ? 'Subscription upgraded.' : 'Subscription activated.' });
+    } catch (error) { res.status(error.status || 500).send({ data: null, message: error.status ? error.message : 'Unable to verify PayPal subscription.' }); }
   },
 
   cancelPayPal: async (req, res) => {

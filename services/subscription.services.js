@@ -1,10 +1,16 @@
 const Subscription = require('../models/subscription.model');
 const Payment = require('../models/payment.model');
 const Plan = require('../models/plan.model');
+const User = require('../models/user.model');
 const PlanService = require('./plan.services');
 const EntitlementService = require('./entitlement.services');
+const mongoose = require('mongoose');
 
 const ACTIVE_STATUSES = ['trial', 'active', 'past_due', 'paused'];
+const SUPERSEDED_STATUSES = ['pending', ...ACTIVE_STATUSES];
+const ASSIGNABLE_STATUSES = ['active', 'trial'];
+
+const serviceError = (message, status) => Object.assign(new Error(message), { status });
 
 const SubscriptionService = {
   getUserSubscription: async (userId) => {
@@ -43,23 +49,62 @@ const SubscriptionService = {
     });
   },
 
-  assignPlanToUser: async (userId, planId, status = 'active') => {
-    const plan = await Plan.findById(planId);
-    if (!plan) throw new Error('Plan not found');
+  assignPlanToUser: async (userId, planId, status = 'active', options = {}) => {
+    if (!ASSIGNABLE_STATUSES.includes(status)) {
+      throw serviceError('Subscription status must be active or trial', 400);
+    }
+    if (!mongoose.isValidObjectId(userId)) {
+      throw serviceError('Invalid user ID', 400);
+    }
+    if (!mongoose.isValidObjectId(planId)) {
+      throw serviceError('Invalid plan ID', 400);
+    }
 
-    await Subscription.updateMany(
-      { userId, status: { $in: ACTIVE_STATUSES } },
-      { $set: { status: 'cancelled', cancelledAt: new Date() } }
-    );
+    const [user, plan] = await Promise.all([
+      User.findById(userId).select('_id'),
+      Plan.findById(planId),
+    ]);
+    if (!user) throw serviceError('User not found', 404);
+    if (!plan) throw serviceError('Plan not found', 404);
+    if (plan.status !== 'active') {
+      throw serviceError('Plan is not active', 400);
+    }
 
-    const sub = await Subscription.create({
+    if (options.paymentProvider === 'manual') {
+      const activePayPal = await Subscription.exists({
+        userId,
+        status: { $in: ACTIVE_STATUSES },
+        paymentProvider: 'paypal',
+        externalSubscriptionId: { $ne: '' },
+      });
+      if (activePayPal) {
+        throw serviceError(
+          "Cancel the user's active PayPal subscription before assigning a plan manually",
+          409
+        );
+      }
+    }
+
+    const sub = new Subscription({
       userId,
       planId: plan._id,
       status,
       startDate: new Date(),
+      paymentProvider: options.paymentProvider || '',
       planSnapshot: PlanService.snapshotPlan(plan),
-      trialEndsAt: plan.trialDays > 0 ? new Date(Date.now() + plan.trialDays * 86400000) : null,
+      trialEndsAt: status === 'trial' && plan.trialDays > 0
+        ? new Date(Date.now() + plan.trialDays * 86400000)
+        : null,
     });
+    await sub.validate();
+
+    const supersededAt = new Date();
+    await Subscription.updateMany(
+      { userId, status: { $in: SUPERSEDED_STATUSES } },
+      { $set: { status: 'cancelled', cancelledAt: supersededAt } }
+    );
+
+    await sub.save();
 
     await PlanService.updateSubscriberCounts();
     return sub.populate('planId');

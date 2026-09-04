@@ -4,6 +4,8 @@ const Automation = require('./models/automation.model');
 const AutomationExecution = require('./models/automationExecution.model');
 const PlanService = require('./services/plan.services');
 const logger = require('./helpers/logging');
+const http = require('http');
+const RealtimeService = require('./services/realtime.services');
 
 const port = process.env.PORT || 3000;
 const app = createApp();
@@ -15,6 +17,7 @@ const start = async () => {
     AutomationExecution.createIndexes(),
   ]);
   await PlanService.ensureAutomationWorkflowEntitlements();
+  await PlanService.ensureIntegrationEntitlements();
 
   if (process.env.NODE_ENV !== 'test') {
     require('./workers/email.worker');
@@ -22,7 +25,9 @@ const start = async () => {
     require('./workers/automation.worker');
   }
 
-  app.listen(port, () => {
+  const server = http.createServer(app);
+  RealtimeService.initialize(server);
+  server.listen(port, () => {
     logger.info(`Server listening at http://localhost:${port}`);
   });
 };

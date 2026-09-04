@@ -31,11 +31,15 @@ const UserService = {
             throw error;
         }
     },
-    updateProfile: async (id, { name, mobile, password }) => {
+    updateProfile: async (id, { name, mobile, password, jobTitle, company, timezone, avatarUrl }) => {
         const user = await User.findById(id).select('+password');
         if (!user) throw new Error(Message.USER_NOT_FOUND);
-        if (name) user.name = name;
-        if (mobile) user.mobile = mobile;
+        if (name !== undefined) user.name = name;
+        if (mobile !== undefined) user.mobile = mobile;
+        if (jobTitle !== undefined) user.jobTitle = jobTitle;
+        if (company !== undefined) user.company = company;
+        if (timezone !== undefined) user.timezone = timezone;
+        if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
         if (password) user.password = password;
         await user.save();
         return user;

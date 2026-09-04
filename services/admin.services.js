@@ -25,7 +25,7 @@ const {
 } = require('../config/permissionsRuntime');
 const emailQueue = require('../queues/email.queue');
 const { EMAIL_QUEUE_NAME } = require('../constants/campaign.constants');
-const { DEFAULT_THEME, normalizeTheme, validateTheme } = require('../constants/theme.constants');
+const { DEFAULT_THEME, THEME_PALETTES, normalizeTheme, validateTheme } = require('../constants/theme.constants');
 
 const paginate = async (model, filter, page = 1, limit = 10, sort = { createdAt: -1 }, populate = '') => {
   const countOnly = filter.countOnly;
@@ -47,11 +47,10 @@ const resolveThemeFromSettings = (settings) => {
   const theme = settings?.theme || {};
   const legacy = settings?.branding || {};
   return normalizeTheme({
+    paletteId: theme.paletteId,
     primary: theme.primary || legacy.primaryColor,
     secondary: theme.secondary || legacy.secondaryColor,
-    background: theme.background,
-    accent: theme.accent,
-    accentHover: theme.accentHover,
+    ...theme,
   });
 };
 
@@ -324,7 +323,12 @@ const AdminService = {
   createSubscription: async (data) => {
     const SubscriptionService = require('./subscription.services');
     if (data.userId && data.planId) {
-      return SubscriptionService.assignPlanToUser(data.userId, data.planId, data.status || 'active');
+      return SubscriptionService.assignPlanToUser(
+        data.userId,
+        data.planId,
+        data.status || 'active',
+        { paymentProvider: 'manual' }
+      );
     }
     return SubscriptionService.createSubscriptionWithSnapshot(data);
   },
@@ -367,6 +371,8 @@ const AdminService = {
     return resolveThemeFromSettings(settings);
   },
 
+  getThemePalettes: async () => Object.entries(THEME_PALETTES).map(([id, palette]) => ({ id, name: palette.name, colors: normalizeTheme({ paletteId: id, ...palette.colors }) })),
+
   updateThemeSettings: async (payload) => {
     const errors = validateTheme(payload);
     if (errors.length) {
@@ -384,7 +390,7 @@ const AdminService = {
   resetThemeSettings: async () => {
     const settings = await SystemSettings.findOneAndUpdate(
       { key: 'global' },
-      { $set: { theme: { ...DEFAULT_THEME } } },
+      { $set: { theme: { paletteId: 'default', ...DEFAULT_THEME } } },
       { new: true, upsert: true, runValidators: true }
     );
     return resolveThemeFromSettings(settings);

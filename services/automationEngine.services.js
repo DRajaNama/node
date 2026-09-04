@@ -17,6 +17,8 @@ const {
   AutomationActionError,
 } = require('./automationAction.services');
 const AutomationDispatchService = require('./automationDispatch.services');
+const UserNotificationService = require('./userNotification.services');
+const RealtimeService = require('./realtime.services');
 
 class AutomationExecutionError extends Error {
   constructor(summary) {
@@ -337,6 +339,13 @@ const executeReservedExecution = async (executionId, options = {}) => {
       });
     }
     await updateAutomationRun(automation._id, AUTOMATION_EXECUTION_STATUS.SUCCESS, completedAt);
+    await UserNotificationService.create({
+      userId: automation.userId,
+      title: 'Automation triggered',
+      message: `Automation "${automation.name}" completed successfully for a new lead.`,
+      type: 'automation',
+      link: `/automations/${automation._id}`,
+    }).then((notification) => RealtimeService.emitToUser(automation.userId, 'notification', notification)).catch(() => undefined);
     return { skipped: false, status: AUTOMATION_EXECUTION_STATUS.SUCCESS };
   } catch (error) {
     if (actionCompleted) {
@@ -372,6 +381,15 @@ const executeReservedExecution = async (executionId, options = {}) => {
     );
     if (automation?._id) {
       await updateAutomationRun(automation._id, AUTOMATION_EXECUTION_STATUS.FAILED, completedAt);
+      await UserNotificationService.create({
+        userId: automation.userId,
+        title: 'Automation failed',
+        message: summary.code === 'SMTP_NOT_CONFIGURED'
+          ? 'Automation email could not run because no active SMTP integration is configured. Connect SMTP in Integrations.'
+          : `Automation "${automation.name}" failed while processing a new lead.`,
+        type: 'automation',
+        link: `/automations/${automation._id}`,
+      }).then((notification) => RealtimeService.emitToUser(automation.userId, 'notification', notification)).catch(() => undefined);
     }
     throw new AutomationExecutionError(summary);
   }

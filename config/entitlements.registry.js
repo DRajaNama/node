@@ -21,6 +21,7 @@ const RESOURCE_KEYS = {
   LEAD_CAPTURE_FORMS: 'lead_capture_forms',
   TEAM_MEMBERS: 'team_members',
   AUTOMATION_WORKFLOWS: 'automation_workflows',
+  INTEGRATIONS: 'integrations',
 };
 
 const FEATURE_KEYS = {
@@ -49,6 +50,7 @@ const REGISTRY = [
   { key: RESOURCE_KEYS.LEAD_CAPTURE_FORMS, label: 'Lead Capture Forms', category: 'resource', type: ENTITLEMENT_TYPES.LIMIT, enforceOnCreate: true },
   { key: RESOURCE_KEYS.TEAM_MEMBERS, label: 'Team Members', category: 'resource', type: ENTITLEMENT_TYPES.LIMIT, enforceOnCreate: false },
   { key: RESOURCE_KEYS.AUTOMATION_WORKFLOWS, label: 'Automation Workflows', category: 'resource', type: ENTITLEMENT_TYPES.LIMIT, enforceOnCreate: true },
+  { key: RESOURCE_KEYS.INTEGRATIONS, label: 'Integrations', category: 'resource', type: ENTITLEMENT_TYPES.LIMIT, enforceOnCreate: true },
   { key: FEATURE_KEYS.MARKETING_AUTOMATION, label: 'Marketing Automation', category: 'feature', type: ENTITLEMENT_TYPES.BOOLEAN },
   { key: FEATURE_KEYS.AB_TESTING, label: 'A/B Testing', category: 'feature', type: ENTITLEMENT_TYPES.BOOLEAN },
   { key: FEATURE_KEYS.ADVANCED_REPORTING, label: 'Advanced Reporting', category: 'feature', type: ENTITLEMENT_TYPES.BOOLEAN },

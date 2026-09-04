@@ -4,7 +4,9 @@ const Message = require('../helpers/constant.message');
 const emailQueue = require('../queues/email.queue');
 const CampaignService = require('./campaign.services');
 const { CAMPAIGN_STATUS, SENDABLE_STATUSES, RECIPIENT_STATUS } = require('../constants/campaign.constants');
-const SettingsService = require('./setting.services');
+const IntegrationService = require('./integration.services');
+const UserNotificationService = require('./userNotification.services');
+const RealtimeService = require('./realtime.services');
 const EntitlementService = require('./entitlement.services');
 const { ObjectId } = require('mongodb');
 
@@ -32,15 +34,19 @@ const CampaignSendService = {
 
     startCampaign: async (campaignId, userId) => {
 
-        const query = [{
-            $match: {
-                user: new ObjectId(userId)
-            }
-        }];
-        const smtp = await SettingsService.getUserSMTP(query);
-        console.log('smtp',smtp)
+        const emailIntegration = await IntegrationService.getActiveEmail(userId);
+        const smtp = emailIntegration?.provider === 'smtp' ? emailIntegration.config : null;
         if (!smtp) {
-            throw new Error(Message.SMTP_NOT_FOUND);
+            const error = new Error(Message.SMTP_NOT_CONFIGURED);
+            error.code = 'SMTP_NOT_CONFIGURED';
+            await UserNotificationService.create({
+                userId,
+                title: 'Email sending needs SMTP',
+                message: Message.SMTP_NOT_CONFIGURED,
+                type: 'system',
+                link: '/integrations/create',
+            }).then((notification) => RealtimeService.emitToUser(userId, 'notification', notification)).catch(() => undefined);
+            throw error;
         }
 
         const campaign = await CampaignService.findByIdAndUserId(campaignId, userId);

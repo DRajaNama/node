@@ -9,6 +9,10 @@ const userSchema = new mongoose.Schema({
             trim: true,
             index: true
         },
+        avatarUrl: { type: String, default: '' },
+        jobTitle: { type: String, default: '', trim: true },
+        company: { type: String, default: '', trim: true },
+        timezone: { type: String, default: 'Asia/Kolkata', trim: true },
         email: { 
             type: String, 
             required: true, 
