@@ -17,15 +17,72 @@ const CampaignService = require('../services/campaign.services');
 const List = require('../models/list.model');
 const ListContact = require('../models/listContact.model');
 const Lead = require('../models/lead.model');
+const WebAnalyticsService = require('../services/webAnalytics.services');
+
+const LEAD_FIELD_ALIASES = {
+  firstName: ['firstname', 'first', 'fname', 'givenname'],
+  lastName: ['lastname', 'last', 'lname', 'surname', 'familyname'],
+  email: ['email', 'emailaddress', 'emailid', 'mail'],
+  phone: ['phone', 'phonenumber', 'mobile', 'mobilenumber', 'telephone', 'tel', 'contactnumber'],
+};
+
+const LEAD_METADATA_FIELDS = new Set([
+  'landingpageid',
+  'formpopupid',
+  'source',
+  'popupname',
+]);
+
+const normalizeLeadFieldName = (name) => String(name || '')
+  .trim()
+  .toLowerCase()
+  .replace(/[^a-z0-9]/g, '');
+
+const toLeadFieldValue = (value) => {
+  const candidate = Array.isArray(value)
+    ? value.find((item) => item !== null && item !== undefined && String(item).trim() !== '')
+    : value;
+
+  if (candidate === null || candidate === undefined || typeof candidate === 'object') {
+    return '';
+  }
+
+  return String(candidate).trim();
+};
+
+const mapStandardLeadFields = (body) => {
+  const submittedFields = Object.entries(body || {}).map(([key, value]) => ({
+    normalizedKey: normalizeLeadFieldName(key),
+    value,
+  }));
+
+  return Object.fromEntries(
+    Object.entries(LEAD_FIELD_ALIASES).map(([field, aliases]) => {
+      const match = submittedFields.find(({ normalizedKey, value }) => (
+        aliases.includes(normalizedKey) && toLeadFieldValue(value) !== ''
+      ));
+      return [field, match ? toLeadFieldValue(match.value) : ''];
+    })
+  );
+};
 
 const extractLeadFields = (body) => {
-  const known = ['landingPageId', 'formPopupId', 'firstName', 'lastName', 'email', 'phone', 'source'];
+  const knownFields = new Set([
+    ...LEAD_METADATA_FIELDS,
+    ...Object.values(LEAD_FIELD_ALIASES).flat(),
+  ]);
   const fields = {};
-  Object.keys(body).forEach((key) => {
-    if (!known.includes(key)) {
-      fields[key] = body[key];
+
+  Object.entries(body || {}).forEach(([key, value]) => {
+    const normalizedKey = normalizeLeadFieldName(key);
+    if (
+      !knownFields.has(normalizedKey)
+      && !['proto', 'prototype', 'constructor'].includes(normalizedKey)
+    ) {
+      fields[key] = value;
     }
   });
+
   return fields;
 };
 
@@ -40,7 +97,17 @@ const PublicController = {
       if (!record) {
         return res.status(404).send({ data: null, message: Message.DATA_NOT_FOUND });
       }
-      await LandingPageService.incrementViews(record._id);
+      if (req.query.visitorId) {
+        await WebAnalyticsService.recordVisit({
+          resourceType: 'landing-page',
+          resourceId: record._id,
+          visitorId: req.query.visitorId,
+          ip: req.ip || req.headers['x-forwarded-for'],
+          userAgent: req.headers['user-agent'],
+        }).catch((trackingError) => {
+          logger.error('Landing page visit tracking failed', trackingError);
+        });
+      }
       const html = record.html;
       const seo = record.seo?.toObject?.() || record.seo || {};
       res.send({
@@ -85,9 +152,46 @@ const PublicController = {
     }
   },
 
+  trackFormPopup: async (req, res) => {
+    try {
+      if (!req.params.id) {
+        return res.status(400).send({ data: null, message: Message.ID_IS_REQUIRED });
+      }
+      const record = await FormPopupService.findPublishedById(req.params.id);
+      if (!record) {
+        return res.status(404).send({ data: null, message: Message.DATA_NOT_FOUND });
+      }
+
+      const event = String(req.body?.event || '').toLowerCase();
+      let updated;
+      if (event === 'view') {
+        updated = await WebAnalyticsService.recordVisit({
+          resourceType: 'form-popup',
+          resourceId: record._id,
+          visitorId: req.body?.visitorId,
+          ip: req.ip || req.headers['x-forwarded-for'],
+          userAgent: req.headers['user-agent'],
+        });
+      } else if (event === 'close') {
+        updated = await WebAnalyticsService.recordPopupClose(record._id);
+      } else {
+        return res.status(400).send({ data: null, message: 'Unsupported popup event' });
+      }
+
+      return res.send({ data: updated?.stats || record.stats, message: Message.SUCCESS });
+    } catch (error) {
+      logger.error('Form popup tracking failed', error);
+      return res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+    }
+  },
+
   submitLead: async (req, res) => {
     try {
-      const { errors, isValid } = leadSubmitValidation(req.body);
+      const standardFields = mapStandardLeadFields(req.body);
+      const { errors, isValid } = leadSubmitValidation({
+        ...req.body,
+        email: standardFields.email,
+      });
       if (!isValid) {
         return res.status(400).send({ errors });
       }
@@ -122,10 +226,10 @@ const PublicController = {
         userId,
         landingPageId: landingPage?._id || null,
         formPopupId: formPopup?._id || null,
-        firstName: req.body.firstName || req.body.first_name || '',
-        lastName: req.body.lastName || req.body.last_name || '',
-        email: req.body.email || '',
-        phone: req.body.phone || req.body.mobile || '',
+        firstName: standardFields.firstName,
+        lastName: standardFields.lastName,
+        email: standardFields.email,
+        phone: standardFields.phone,
         fields: extractLeadFields(req.body),
         source: formPopup ? 'form-popup' : 'landing-page',
         ip: req.ip || req.headers['x-forwarded-for'] || '',

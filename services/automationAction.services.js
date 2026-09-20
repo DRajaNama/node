@@ -8,6 +8,7 @@ const Template = require('../models/template.model');
 const Settings = require('../models/settings.model');
 const Contact = require('../models/contacts.model');
 const CampaignRecipient = require('../models/campaignRecipient.model');
+const CampaignEvent = require('../models/campaignEvent.model');
 const sendEmail = require('../helpers/email.provider');
 const { replaceTemplateVariables } = require('../helpers/template.helper');
 const EntitlementService = require('./entitlement.services');
@@ -20,6 +21,7 @@ const {
 const { AUTOMATION_ACTION } = require('../constants/automation.constants');
 const { CAMPAIGN_STATUS, RECIPIENT_STATUS } = require('../constants/campaign.constants');
 const IntegrationService = require('./integration.services');
+const { isRecipientAccepted } = require('../helpers/emailDelivery.helper');
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ALLOWED_WEBHOOK_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
@@ -223,12 +225,14 @@ const prepareCampaignRecipient = async ({ campaign, contact, lead, execution }) 
 
 const completeCampaignRecipientBestEffort = async ({ campaignId, recipientId, result }) => {
   try {
+    const acceptedAt = new Date();
     const update = await CampaignRecipient.updateOne(
       { _id: recipientId, status: RECIPIENT_STATUS.SENDING },
       {
         $set: {
-          status: RECIPIENT_STATUS.SENT,
-          sentAt: new Date(),
+          status: RECIPIENT_STATUS.DELIVERED,
+          sentAt: acceptedAt,
+          deliveredAt: acceptedAt,
           providerMessageId: String(result?.messageId || ''),
         },
       }
@@ -236,8 +240,23 @@ const completeCampaignRecipientBestEffort = async ({ campaignId, recipientId, re
     if (update.modifiedCount) {
       await Campaign.updateOne(
         { _id: campaignId },
-        { $inc: { 'stats.sent': 1, 'stats.pending': -1 } }
+        { $inc: { 'stats.sent': 1, 'stats.delivered': 1, 'stats.pending': -1 } }
       );
+      await CampaignEvent.create({
+        campaignId,
+        recipientId,
+        event: 'sent',
+        metadata: { providerMessageId: String(result?.messageId || '') },
+      }).catch(() => undefined);
+      await CampaignEvent.create({
+        campaignId,
+        recipientId,
+        event: 'delivered',
+        metadata: {
+          providerMessageId: String(result?.messageId || ''),
+          source: 'smtp-accepted',
+        },
+      }).catch(() => undefined);
     }
     return !!update.modifiedCount;
   } catch {
@@ -330,6 +349,8 @@ const executeEmailCampaign = async ({ automation, lead, execution }) => {
     NAME: [lead.firstName, lead.lastName].filter(Boolean).join(' '),
     EMAIL: email,
     TRACKTOKEN: preparedRecipient.recipient.trackingToken,
+    TRACK_OPEN: campaign.settings?.trackOpen !== false,
+    TRACK_CLICK: campaign.settings?.trackClick !== false,
   });
   let result;
   try {
@@ -341,6 +362,12 @@ const executeEmailCampaign = async ({ automation, lead, execution }) => {
       fromName: campaign.fromName,
       fromEmail: campaign.fromEmail,
     });
+    if (!isRecipientAccepted(result, email)) {
+      throw new AutomationActionError('The SMTP provider rejected the recipient.', {
+        code: 'RECIPIENT_REJECTED',
+        retryable: true,
+      });
+    }
   } catch (error) {
     await failCampaignRecipientBestEffort({
       campaignId: campaign._id,

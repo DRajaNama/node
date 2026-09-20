@@ -10,6 +10,26 @@ const logError = (action, error) => logger.error(`${Message.LOG_END} - ${CONTROL
 
 const DashboardController = {
 
+    getSummary: async (req, res) => {
+        try {
+            const data = await DashboardService.getSummary(req.userId, req.query.range);
+            return res.send({ data, message: Message.SUCCESS });
+        } catch (error) {
+            logError('dashboard summary', error);
+            return res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+        }
+    },
+
+    getStatistics: async (req, res) => {
+        try {
+            const data = await DashboardService.getStatistics(req.userId, req.query.range);
+            return res.send({ data, message: Message.SUCCESS });
+        } catch (error) {
+            logError('dashboard statistics', error);
+            return res.status(500).send({ data: null, message: Message.SERVER_ERROR });
+        }
+    },
+
     getEvents: async (req, res) => {
 
         logStart(Message.FETCHING_RECORD, { userId: req.userId });

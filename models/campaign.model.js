@@ -92,6 +92,11 @@ const campaignSchema = new mongoose.Schema(
       default: null
     },
 
+    sendingStartedAt: {
+      type: Date,
+      default: null
+    },
+
     timezone: {
       type: String,
       default: "Asia/Kolkata"
@@ -181,6 +186,7 @@ campaignSchema.pre('validate', function enforceCampaignTypeStatus() {
 });
 
 campaignSchema.index({ userId: 1, status: 1 });
+campaignSchema.index({ userId: 1, updatedAt: -1 });
 campaignSchema.index({ scheduledAt: 1 });
 
 module.exports = mongoose.model("Campaign", campaignSchema);

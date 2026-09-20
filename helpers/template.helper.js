@@ -1,6 +1,39 @@
 const cheerio = require("cheerio");
 require('dotenv').config();
 
+const getTrackingBaseUrl = () => String(
+    process.env.FULL_URL || process.env.API_URL || 'http://localhost:3000'
+).replace(/\/+$/, '').replace(/\/api$/i, '');
+
+const injectEmailTracking = (html, data = {}) => {
+    const token = String(data.TRACKTOKEN || '').trim();
+    if (!token) return html;
+
+    const $ = cheerio.load(html, { decodeEntities: false });
+    const trackingBaseUrl = getTrackingBaseUrl();
+
+    if (data.TRACK_CLICK !== false) {
+        $('a[href]').each((_index, element) => {
+            const link = $(element);
+            const href = String(link.attr('href') || '').trim();
+            if (!/^https?:\/\//i.test(href) || /\/api\/track\/click\//i.test(href)) return;
+
+            link.attr(
+                'href',
+                `${trackingBaseUrl}/api/track/click/${token}?url=${encodeURIComponent(href)}`
+            );
+        });
+    }
+
+    if (data.TRACK_OPEN !== false && !$('[data-ve-open-tracking]').length) {
+        $('body').append(
+            `<img data-ve-open-tracking="true" src="${trackingBaseUrl}/api/track/open/${token}.png" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;opacity:0" />`
+        );
+    }
+
+    return $.html();
+};
+
 const prepareEmailHtml = (html) => {
     const $ = cheerio.load(html, {
         decodeEntities: false
@@ -82,7 +115,7 @@ const replaceTemplateVariables = (html, data) => {
                 data[key] ?? ""
             );
         });
-        return content;
+        return injectEmailTracking(content, data);
     } catch(error) {
         throw error;
     }
@@ -125,5 +158,6 @@ const cleanEmailHtml = (html) => {
 module.exports = {
     replaceTemplateVariables,
     cleanEmailHtml,
-    prepareEmailHtml
+    prepareEmailHtml,
+    injectEmailTracking
 };

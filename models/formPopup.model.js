@@ -41,6 +41,9 @@ const formPopupSchema = new mongoose.Schema(
       closeButton: { type: Boolean, default: true },
     },
     stats: {
+      views: { type: Number, default: 0 },
+      uniqueViews: { type: Number, default: 0 },
+      closes: { type: Number, default: 0 },
       leads: { type: Number, default: 0 },
       unsubscribed: { type: Number, default: 0 },
     },

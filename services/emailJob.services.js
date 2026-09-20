@@ -10,6 +10,7 @@ const { ObjectId } = require('mongodb');
 const UserNotificationService = require('./userNotification.services');
 const IntegrationService = require('./integration.services');
 const RealtimeService = require('./realtime.services');
+const { isRecipientAccepted } = require('../helpers/emailDelivery.helper');
 
 const SKIPPABLE_CAMPAIGN_STATUSES = [
     CAMPAIGN_STATUS.PAUSED,
@@ -50,7 +51,9 @@ const processEmailJob = async (data) => {
     let html = replaceTemplateVariables(template.html, {
         NAME: data.firstName + data.lastName || '',
         EMAIL:data.email,
-        TRACKTOKEN : data.trackingToken
+        TRACKTOKEN: data.trackingToken,
+        TRACK_OPEN: campaign.settings?.trackOpen !== false,
+        TRACK_CLICK: campaign.settings?.trackClick !== false
     });
     html = html; //cleanEmailHtml(html);
 
@@ -58,7 +61,7 @@ const processEmailJob = async (data) => {
         status: RECIPIENT_STATUS.SENDING
     });
 
-    await sendEmail({
+    const sendResult = await sendEmail({
         email: data.email,
         subject: campaign.subject,
         fromName: campaign.fromName,
@@ -66,13 +69,41 @@ const processEmailJob = async (data) => {
         html: html
     },smtp);
 
+    if (!isRecipientAccepted(sendResult, data.email)) {
+        const rejection = new Error('The SMTP provider rejected the recipient.');
+        rejection.code = 'RECIPIENT_REJECTED';
+        throw rejection;
+    }
+
+    const acceptedAt = new Date();
+
     await CampaignService.updateRecipientStatus(data.recipientId, {
-        status: RECIPIENT_STATUS.SENT,
-        sentAt: new Date()
+        status: RECIPIENT_STATUS.DELIVERED,
+        sentAt: acceptedAt,
+        deliveredAt: acceptedAt,
+        providerMessageId: String(sendResult?.messageId || '')
     });
+
+    await CampaignService.createEvent({
+        campaignId: data.campaignId,
+        recipientId: data.recipientId,
+        event: 'sent',
+        metadata: { providerMessageId: String(sendResult?.messageId || '') }
+    }).catch(() => undefined);
+
+    await CampaignService.createEvent({
+        campaignId: data.campaignId,
+        recipientId: data.recipientId,
+        event: 'delivered',
+        metadata: {
+            providerMessageId: String(sendResult?.messageId || ''),
+            source: 'smtp-accepted'
+        }
+    }).catch(() => undefined);
 
     const updatedCampaign = await CampaignService.incrementStats(data.campaignId, {
         'stats.sent': 1,
+        'stats.delivered': 1,
         'stats.pending': -1
     });
 

@@ -6,6 +6,7 @@ const { validatePayload } = require('../middleware/common.middleware');
 router.get('/public/landing-page/:slug', publicController.getLandingPage);
 router.get('/public/landing-pages/:slug', publicController.getLandingPage);
 router.get('/public/form-popup/:id', publicController.getFormPopup);
+router.post('/public/form-popup/:id/track', publicController.trackFormPopup);
 router.post('/public/lead/submit', validatePayload, publicController.submitLead);
 // router.post('public/analytics/track', validatePayload, publicController.submitLead);
 router.get('/public/unsubscribe/:email',publicController.unsubscribe);

@@ -1,4 +1,5 @@
 const LandingPage = require('../models/landingPage.model');
+const AnalyticsVisit = require('../models/analyticsVisit.model');
 const Message = require('../helpers/constant.message');
 
 const LandingPageService = {
@@ -49,6 +50,7 @@ const LandingPageService = {
       throw new Error(Message.DATA_NOT_FOUND);
     }
     await LandingPage.deleteOne({ _id: id });
+    await AnalyticsVisit.deleteMany({ resourceType: 'landing-page', resourceId: id });
     return record;
   },
 

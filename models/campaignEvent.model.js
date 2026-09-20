@@ -52,6 +52,8 @@ campaignEventSchema.index({
   event: 1
 });
 
+campaignEventSchema.index({ campaignId: 1, event: 1, createdAt: -1 });
+
 module.exports = mongoose.model(
   "CampaignEvent",
   campaignEventSchema

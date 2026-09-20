@@ -3,6 +3,7 @@
 
   const API_URL = "http://localhost:3000/api/public/form-popup/";
   const LEAD_SUBMIT_URL = "http://localhost:3000/api/public/lead/submit";
+  const POPUP_TRACK_URL = "http://localhost:3000/api/public/form-popup/";
   const SCRIPT_SELECTOR = "script[data-popup-id]";
   const ROOT_ID = "form-popup-root";
   const CLOSE_MESSAGE = "FORM_POPUP_CLOSE";
@@ -10,6 +11,18 @@
   const SUBMIT_ERROR_MESSAGE = "FORM_POPUP_SUBMIT_ERROR";
   const CLOSE_COOLDOWN = 60 * 60 * 1000;
   const STORAGE_PREFIX = "form_popup_state_";
+  const VISITOR_STORAGE_KEY = "ve_analytics_visitor_id";
+  const POPUP_POSITIONS = new Set([
+    "top-left",
+    "top-center",
+    "top-right",
+    "center-left",
+    "center",
+    "center-right",
+    "bottom-left",
+    "bottom-center",
+    "bottom-right"
+  ]);
 
   function getScript() {
     return document.currentScript || document.querySelector(SCRIPT_SELECTOR);
@@ -266,15 +279,101 @@ input,textarea,select,button{max-width:100%}
     return html;
   }
 
+  function getVisitorId() {
+    try {
+      const existing = localStorage.getItem(VISITOR_STORAGE_KEY);
+      if (existing) return existing;
+
+      const visitorId = globalThis.crypto?.randomUUID?.() ||
+        Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+      localStorage.setItem(VISITOR_STORAGE_KEY, visitorId);
+      return visitorId;
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function trackPopupEvent(popupId, event) {
+    fetch(POPUP_TRACK_URL + encodeURIComponent(popupId) + "/track", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({
+        event,
+        visitorId: getVisitorId()
+      }),
+      keepalive: true
+    }).catch(error => {
+      console.warn("[FormPopup] Analytics tracking failed:", error);
+    });
+  }
+
+  function normalizePosition(position) {
+    const value = String(position || "")
+      .trim()
+      .toLowerCase();
+
+    const aliases = {
+      top: "top-center",
+      right: "center-right",
+      bottom: "bottom-center",
+      left: "center-left"
+    };
+
+    const normalized = aliases[value] || value;
+    return POPUP_POSITIONS.has(normalized) ? normalized : null;
+  }
+
+  function getHtmlPopupPosition(html) {
+    if (typeof html !== "string" || !html.trim()) return null;
+
+    try {
+      const popupDocument = new DOMParser().parseFromString(
+        html,
+        "text/html"
+      );
+      const positionElement = popupDocument.querySelector(
+        ".ve-popup-meta[data-popup-position]," +
+        ".ve-popup-root[data-popup-position]," +
+        "[data-popup-position]"
+      );
+
+      return positionElement
+        ? normalizePosition(
+            positionElement.getAttribute("data-popup-position")
+          )
+        : null;
+    } catch (error) {
+      console.warn("[FormPopup] Unable to read popup position:", error);
+      return null;
+    }
+  }
+
+  function getPopupPosition(data) {
+    const script = getScript();
+    const scriptPosition = script
+      ? normalizePosition(script.getAttribute("data-popup-position"))
+      : null;
+
+    return (
+      scriptPosition ||
+      getHtmlPopupPosition(data.html) ||
+      normalizePosition(data.settings?.position) ||
+      "center"
+    );
+  }
+
   function getPositionStyle(position) {
-    switch (String(position || "center").toLowerCase()) {
-      case "top":
+    switch (normalizePosition(position) || "center") {
+      case "top-center":
         return {
           alignItems: "flex-start",
           justifyContent: "center",
           paddingTop: "40px"
         };
-      case "bottom":
+      case "bottom-center":
         return {
           alignItems: "flex-end",
           justifyContent: "center",
@@ -292,6 +391,18 @@ input,textarea,select,button{max-width:100%}
           alignItems: "flex-start",
           justifyContent: "flex-end",
           paddingTop: "40px",
+          paddingRight: "40px"
+        };
+      case "center-left":
+        return {
+          alignItems: "center",
+          justifyContent: "flex-start",
+          paddingLeft: "40px"
+        };
+      case "center-right":
+        return {
+          alignItems: "center",
+          justifyContent: "flex-end",
           paddingRight: "40px"
         };
       case "bottom-left":
@@ -422,7 +533,10 @@ input,textarea,select,button{max-width:100%}
     });
 
     const overlay = document.createElement("div");
-    const positionStyle = getPositionStyle(settings.position);
+    const popupPosition = getPopupPosition(data);
+    const positionStyle = getPositionStyle(popupPosition);
+
+    root.setAttribute("data-popup-position", popupPosition);
 
     Object.assign(overlay.style, {
       position: "fixed",
@@ -482,7 +596,7 @@ input,textarea,select,button{max-width:100%}
 
     let popupClosed = false;
 
-    function closePopup() {
+    function closePopup(trackClose = true) {
       if (popupClosed) return;
 
       popupClosed = true;
@@ -500,6 +614,7 @@ input,textarea,select,button{max-width:100%}
       window.removeEventListener("message", messageHandler);
 
       root.remove();
+      if (trackClose) trackPopupEvent(popupId, "close");
     }
 
     function messageHandler(event) {
@@ -509,7 +624,7 @@ input,textarea,select,button{max-width:100%}
 
       if (event.data.type === SUBSCRIBE_MESSAGE) {
         markSubscribed(popupId);
-        closePopup();
+        closePopup(false);
         return;
       }
 
@@ -539,6 +654,7 @@ input,textarea,select,button{max-width:100%}
     overlay.appendChild(iframe);
     root.appendChild(overlay);
     document.body.appendChild(root);
+    trackPopupEvent(popupId, "view");
   }
 
   async function init() {

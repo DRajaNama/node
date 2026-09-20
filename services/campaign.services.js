@@ -105,9 +105,14 @@ const CampaignService = {
     },
 
     updateStatus: async (campaignId, userId, status) => {
+        const update = { status };
+        if (status === 'sending') {
+            update.sendingStartedAt = new Date();
+        }
+
         const record = await Campaign.findOneAndUpdate(
             { _id: campaignId, userId: userId },
-            { status },
+            update,
             { new: true }
         );
 
@@ -165,17 +170,18 @@ const CampaignService = {
                     total: { $sum: 1 },
                     sent: {
                         $sum: {
-                            $cond: [
-                                { $in: ['$status', ['sent', 'delivered', 'opened', 'clicked']] },
-                                1,
-                                0
-                            ]
+                            $cond: [{ $ne: [{ $ifNull: ['$sentAt', null] }, null] }, 1, 0]
                         }
                     },
                     delivered: {
                         $sum: {
                             $cond: [
-                                { $in: ['$status', ['delivered', 'opened', 'clicked']] },
+                                {
+                                    $ne: [
+                                        { $ifNull: ['$deliveredAt', '$sentAt'] },
+                                        null
+                                    ]
+                                },
                                 1,
                                 0
                             ]
@@ -183,16 +189,12 @@ const CampaignService = {
                     },
                     opened: {
                         $sum: {
-                            $cond: [
-                                { $in: ['$status', ['opened', 'clicked']] },
-                                1,
-                                0
-                            ]
+                            $cond: [{ $ne: [{ $ifNull: ['$openedAt', null] }, null] }, 1, 0]
                         }
                     },
                     clicked: {
                         $sum: {
-                            $cond: [{ $eq: ['$status', 'clicked'] }, 1, 0]
+                            $cond: [{ $ne: [{ $ifNull: ['$clickedAt', null] }, null] }, 1, 0]
                         }
                     },
                     bounced: {

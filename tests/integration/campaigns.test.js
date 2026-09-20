@@ -6,7 +6,9 @@ const assert = require('node:assert/strict');
 const request = require('supertest');
 const createApp = require('../../app');
 const Campaign = require('../../models/campaign.model');
+const CampaignRecipient = require('../../models/campaignRecipient.model');
 const Automation = require('../../models/automation.model');
+const CampaignSendService = require('../../services/campaignSend.services');
 const { connectTestDb, disconnectTestDb, clearCollections } = require('../helpers/setupDb');
 const { seedUsers, signToken } = require('../helpers/seed');
 const { authHeader } = require('../helpers/auth');
@@ -128,5 +130,169 @@ describe('campaign API', () => {
 
     assert.equal(deleted.status, 200);
     assert.equal(await Campaign.exists({ _id: campaign._id }), null);
+  });
+
+  it('resends a failed campaign only to failed recipients', async () => {
+    const campaign = await Campaign.create({
+      userId: users.customer._id,
+      name: 'Partially failed campaign',
+      subject: 'Delivery test',
+      fromName: 'Sales',
+      fromEmail: 'sales@example.com',
+      templateId: users.customer._id,
+      type: 'email',
+      status: 'failed',
+      listIds: [],
+      stats: { total: 2, sent: 1, failed: 1, pending: 0 },
+    });
+    const [sentRecipient, failedRecipient] = await CampaignRecipient.create([
+      {
+        campaignId: campaign._id,
+        userId: users.customer._id,
+        contactId: users.customer._id,
+        email: 'sent@example.com',
+        status: 'sent',
+        trackingToken: 'sent-recipient-token',
+      },
+      {
+        campaignId: campaign._id,
+        userId: users.customer._id,
+        contactId: users.admin._id,
+        email: 'failed@example.com',
+        status: 'failed',
+        trackingToken: 'failed-recipient-token',
+        bounceReason: 'Temporary SMTP error',
+      },
+    ]);
+    const originalEnqueue = CampaignSendService.enqueueRecipients;
+    let enqueuedRecipientIds = [];
+    CampaignSendService.enqueueRecipients = async (_campaign, recipients) => {
+      enqueuedRecipientIds = recipients.map((recipient) => String(recipient._id));
+      return recipients.length;
+    };
+
+    try {
+      const response = await request(app)
+        .post(`/api/campaign/resend/${campaign._id}`)
+        .set(authHeader(customerToken));
+
+      assert.equal(response.status, 200);
+      assert.deepEqual(enqueuedRecipientIds, [String(failedRecipient._id)]);
+
+      const updatedCampaign = await Campaign.findById(campaign._id).lean();
+      assert.equal(updatedCampaign.status, 'sending');
+      assert.equal(updatedCampaign.stats.sent, 1);
+      assert.equal(updatedCampaign.stats.failed, 0);
+      assert.equal(updatedCampaign.stats.pending, 1);
+
+      assert.equal((await CampaignRecipient.findById(sentRecipient._id)).status, 'sent');
+      const retriedRecipient = await CampaignRecipient.findById(failedRecipient._id).lean();
+      assert.equal(retriedRecipient.status, 'pending');
+      assert.equal(retriedRecipient.bounceReason, undefined);
+    } finally {
+      CampaignSendService.enqueueRecipients = originalEnqueue;
+    }
+  });
+
+  it('resumes a campaign sending for two hours without resending successful recipients', async () => {
+    const campaign = await Campaign.create({
+      userId: users.customer._id,
+      name: 'Stuck campaign',
+      subject: 'Resume sending',
+      fromName: 'Sales',
+      fromEmail: 'sales@example.com',
+      templateId: users.customer._id,
+      type: 'email',
+      status: 'sending',
+      sendingStartedAt: new Date(Date.now() - (2 * 60 * 60 * 1000) - 1000),
+      listIds: [],
+      stats: { total: 2, sent: 1, pending: 1 },
+    });
+    const [sentRecipient, pendingRecipient] = await CampaignRecipient.create([
+      {
+        campaignId: campaign._id,
+        userId: users.customer._id,
+        contactId: users.customer._id,
+        email: 'sent@example.com',
+        status: 'sent',
+        trackingToken: 'stuck-sent-recipient-token',
+        sentAt: new Date(),
+        providerMessageId: 'provider-message-id',
+      },
+      {
+        campaignId: campaign._id,
+        userId: users.customer._id,
+        contactId: users.admin._id,
+        email: 'pending@example.com',
+        status: 'sending',
+        trackingToken: 'stuck-pending-recipient-token',
+      },
+    ]);
+    const originalEnqueue = CampaignSendService.enqueueRecipients;
+    let enqueuedRecipientIds = [];
+    CampaignSendService.enqueueRecipients = async (_campaign, recipients) => {
+      enqueuedRecipientIds = recipients.map((item) => String(item._id));
+      return recipients.length;
+    };
+
+    try {
+      const response = await request(app)
+        .post(`/api/campaign/resend/${campaign._id}`)
+        .set(authHeader(customerToken));
+
+      assert.equal(response.status, 200);
+      assert.deepEqual(enqueuedRecipientIds, [String(pendingRecipient._id)]);
+
+      const updatedCampaign = await Campaign.findById(campaign._id).lean();
+      assert.equal(updatedCampaign.status, 'sending');
+      assert.equal(updatedCampaign.stats.total, 2);
+      assert.equal(updatedCampaign.stats.pending, 1);
+      assert.equal(updatedCampaign.stats.sent, 1);
+      assert.ok(Date.now() - updatedCampaign.sendingStartedAt.getTime() < 10000);
+
+      const preservedRecipient = await CampaignRecipient.findById(sentRecipient._id).lean();
+      assert.equal(preservedRecipient.status, 'sent');
+      assert.ok(preservedRecipient.sentAt);
+      assert.equal(preservedRecipient.providerMessageId, 'provider-message-id');
+      assert.equal((await CampaignRecipient.findById(pendingRecipient._id)).status, 'pending');
+    } finally {
+      CampaignSendService.enqueueRecipients = originalEnqueue;
+    }
+  });
+
+  it('does not resend completed or recently-started campaigns', async () => {
+    const campaigns = await Campaign.create([
+      {
+        userId: users.customer._id,
+        name: 'Completed campaign',
+        subject: 'Completed',
+        fromName: 'Sales',
+        fromEmail: 'sales@example.com',
+        templateId: users.customer._id,
+        type: 'email',
+        status: 'completed',
+        listIds: [],
+      },
+      {
+        userId: users.customer._id,
+        name: 'Recently started campaign',
+        subject: 'Still sending',
+        fromName: 'Sales',
+        fromEmail: 'sales@example.com',
+        templateId: users.customer._id,
+        type: 'email',
+        status: 'sending',
+        sendingStartedAt: new Date(),
+        listIds: [],
+      },
+    ]);
+
+    for (const campaign of campaigns) {
+      const response = await request(app)
+        .post(`/api/campaign/resend/${campaign._id}`)
+        .set(authHeader(customerToken));
+      assert.equal(response.status, 400);
+      assert.equal(response.body.message, 'Invalid campaign status');
+    }
   });
 });

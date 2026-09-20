@@ -62,6 +62,7 @@ const landingPageSchema = new mongoose.Schema(
     },
     stats: {
       views: { type: Number, default: 0 },
+      uniqueViews: { type: Number, default: 0 },
       leads: { type: Number, default: 0 },
       unsubscribed: { type: Number, default: 0 },
     },

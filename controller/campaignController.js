@@ -51,6 +51,9 @@ const handleServerError = (res, action, error) => {
     if (error?.code === 'SMTP_NOT_CONFIGURED') {
         return res.status(400).send({ data: null, code: error.code, message: error.message });
     }
+    if (error?.message === Message.INVALID_STATUS) {
+        return res.status(400).send({ data: null, message: Message.INVALID_STATUS });
+    }
     res.status(500).send({ data: null, message: Message.SERVER_ERROR });
 };
 

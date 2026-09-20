@@ -1,4 +1,5 @@
 const FormPopup = require('../models/formPopup.model');
+const AnalyticsVisit = require('../models/analyticsVisit.model');
 const Message = require('../helpers/constant.message');
 
 const FormPopupService = {
@@ -60,6 +61,7 @@ const FormPopupService = {
       throw new Error(Message.DATA_NOT_FOUND);
     }
     await FormPopup.deleteOne({ _id: id });
+    await AnalyticsVisit.deleteMany({ resourceType: 'form-popup', resourceId: id });
     return record;
   },
 };

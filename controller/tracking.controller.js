@@ -1,7 +1,16 @@
 const CampaignRecipient = require("../models/campaignRecipient.model");
 const CampaignEvent = require("../models/campaignEvent.model");
 const CampaignService = require("../services/campaign.services");
+const RealtimeService = require('../services/realtime.services');
 
+const getRedirectUrl = (value) => {
+    try {
+        const url = new URL(String(value || ''));
+        return ['http:', 'https:'].includes(url.protocol) ? url.toString() : '/';
+    } catch {
+        return '/';
+    }
+};
 
 const TrackingController = {
     open: async (req, res) => {
@@ -14,11 +23,22 @@ const TrackingController = {
                     event: "opened",
                     ip: req.ip,
                     userAgent: req.headers["user-agent"]
-                });
+                }).catch(() => undefined);
 
-                if (!recipient.openedAt) {
-                    await CampaignRecipient.updateOne({ _id: recipient._id }, { openedAt: new Date(), status: "opened" });
-                    await CampaignService.incrementStats( recipient.campaignId, {"stats.opened": 1 });
+                const firstOpen = await CampaignRecipient.updateOne(
+                    { _id: recipient._id, openedAt: null },
+                    { $set: { openedAt: new Date() } }
+                );
+                if (firstOpen.modifiedCount) {
+                    await CampaignRecipient.updateOne(
+                        { _id: recipient._id, status: { $in: ['sent', 'delivered'] } },
+                        { $set: { status: 'opened' } }
+                    );
+                    await CampaignService.incrementStats(recipient.campaignId, { "stats.opened": 1 });
+                    RealtimeService.emitToUser(recipient.userId, 'campaign:updated', {
+                        campaignId: String(recipient.campaignId),
+                        event: 'opened'
+                    });
                 }
             }
         } catch (error) {
@@ -31,7 +51,9 @@ const TrackingController = {
         );
         res.writeHead(200, {
             "Content-Type": "image/png",
-            "Content-Length": pixel.length
+            "Content-Length": pixel.length,
+            "Cache-Control": "no-store, no-cache, must-revalidate, private",
+            "Pragma": "no-cache"
         });
 
         res.end(pixel);
@@ -40,7 +62,7 @@ const TrackingController = {
     click: async (req, res) => {
         try {
             const recipient =  await CampaignRecipient.findOne({ trackingToken: req.params.token });
-            const url = req.query.url;
+            const url = getRedirectUrl(req.query.url);
             if (recipient) {
                 await CampaignEvent.create({
                     campaignId: recipient.campaignId,
@@ -49,14 +71,21 @@ const TrackingController = {
                     url,
                     ip: req.ip,
                     userAgent: req.headers["user-agent"]
-                });
+                }).catch(() => undefined);
 
-                if (!recipient.clickedAt) {
-                    await CampaignRecipient.updateOne({ _id: recipient._id }, { clickedAt: new Date(), status: "clicked" });
-                    await CampaignService.incrementStats( recipient.campaignId, { "stats.clicked": 1});
+                const firstClick = await CampaignRecipient.updateOne(
+                    { _id: recipient._id, clickedAt: null },
+                    { $set: { clickedAt: new Date(), status: 'clicked' } }
+                );
+                if (firstClick.modifiedCount) {
+                    await CampaignService.incrementStats(recipient.campaignId, { "stats.clicked": 1});
+                    RealtimeService.emitToUser(recipient.userId, 'campaign:updated', {
+                        campaignId: String(recipient.campaignId),
+                        event: 'clicked'
+                    });
                 }
             }
-            res.redirect(url || "/");
+            res.redirect(url);
         } catch (error) {
             console.log(error);
             res.redirect("/");

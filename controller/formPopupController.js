@@ -77,8 +77,19 @@ const FormPopupController = {
       const limit = parseInt(req.query.limit) || 10;
       const records = await FormPopupService.getAllRecord(filter, page, limit);
       const total = await FormPopupService.getAllRecord({ ...filter, countOnly: true });
+      const data = records.map((record) => {
+        const doc = record.toObject();
+        const views = doc.stats?.views || 0;
+        doc.conversionRate = views > 0
+          ? Math.round(((doc.stats?.leads || 0) / views) * 10000) / 100
+          : 0;
+        doc.closeRate = views > 0
+          ? Math.round(((doc.stats?.closes || 0) / views) * 10000) / 100
+          : 0;
+        return doc;
+      });
       res.send({
-        data: records,
+        data,
         message: Message.DATA_FOUND,
         meta: { page, limit, total },
       });

@@ -1,5 +1,6 @@
 const Contact = require('../models/contacts.model');
 const ListContact = require('../models/listContact.model');
+const CampaignRecipient = require('../models/campaignRecipient.model');
 const Message = require('../helpers/constant.message');
 const emailQueue = require('../queues/email.queue');
 const CampaignService = require('./campaign.services');
@@ -9,6 +10,21 @@ const UserNotificationService = require('./userNotification.services');
 const RealtimeService = require('./realtime.services');
 const EntitlementService = require('./entitlement.services');
 const { ObjectId } = require('mongodb');
+
+const RESEND_AFTER_MS = 2 * 60 * 60 * 1000;
+const RESENDABLE_RECIPIENT_STATUSES = [
+    RECIPIENT_STATUS.PENDING,
+    RECIPIENT_STATUS.QUEUED,
+    RECIPIENT_STATUS.SENDING,
+    RECIPIENT_STATUS.FAILED
+];
+
+const isStaleSendingCampaign = (campaign) => {
+    if (campaign.status !== CAMPAIGN_STATUS.SENDING) return false;
+    const sendingStartedAt = campaign.sendingStartedAt || campaign.updatedAt;
+    const startedAt = new Date(sendingStartedAt || 0).getTime();
+    return Number.isFinite(startedAt) && Date.now() - startedAt >= RESEND_AFTER_MS;
+};
 
 const CampaignSendService = {
 
@@ -127,6 +143,7 @@ const CampaignSendService = {
 
         } else {
             campaign.status = CAMPAIGN_STATUS.SENDING;
+            campaign.sendingStartedAt = new Date();
         }
         
         const queueOptions = campaign.sendType === 'schedule'
@@ -164,6 +181,7 @@ const CampaignSendService = {
             'stats.failed': -failedRecipients.length
         });
         campaign.status = CAMPAIGN_STATUS.SENDING;
+        campaign.sendingStartedAt = new Date();
         await campaign.save();
         await CampaignSendService.enqueueRecipients(campaign, failedRecipients, userId);
 
@@ -173,30 +191,32 @@ const CampaignSendService = {
     resendCampaign: async (campaignId, userId) => {
         const campaign = await CampaignService.findByIdAndUserId(campaignId, userId);
         if (!campaign) throw new Error(Message.DATA_NOT_FOUND);
-        if (![CAMPAIGN_STATUS.COMPLETED, CAMPAIGN_STATUS.FAILED].includes(campaign.status)) {
+
+        if (campaign.status === CAMPAIGN_STATUS.FAILED) {
+            return CampaignSendService.retryCampaign(campaignId, userId);
+        }
+
+        if (!isStaleSendingCampaign(campaign)) {
             throw new Error(Message.INVALID_STATUS);
         }
 
-        const recipients = await CampaignService.getRecipients(campaignId, 1, 0, false);
+        const recipients = await CampaignRecipient.find({
+            campaignId: campaign._id,
+            status: { $in: RESENDABLE_RECIPIENT_STATUSES }
+        });
         if (recipients.length === 0) throw new Error(Message.DATA_NOT_FOUND);
 
         await CampaignRecipient.updateMany(
-            { campaignId: campaign._id },
+            { _id: { $in: recipients.map((recipient) => recipient._id) } },
             {
                 $set: { status: RECIPIENT_STATUS.PENDING },
                 $unset: { sentAt: 1, bounceReason: 1, bouncedAt: 1, providerMessageId: 1 }
             }
         );
         campaign.status = CAMPAIGN_STATUS.SENDING;
-        campaign.stats.total = recipients.length;
+        campaign.sendingStartedAt = new Date();
         campaign.stats.pending = recipients.length;
-        campaign.stats.sent = 0;
-        campaign.stats.delivered = 0;
-        campaign.stats.opened = 0;
-        campaign.stats.clicked = 0;
-        campaign.stats.bounced = 0;
         campaign.stats.failed = 0;
-        campaign.stats.unsubscribed = 0;
         await campaign.save();
         await CampaignSendService.enqueueRecipients(campaign, recipients, userId);
 
