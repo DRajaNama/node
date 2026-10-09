@@ -5,6 +5,7 @@ const EntitlementService = require('../services/entitlement.services');
 const { handleQuotaError } = require('../middleware/quota.middleware');
 const QuotaExceededError = require('../helpers/quotaError');
 const BlogPost = require('../models/blogPost.model');
+const { ensureDefaultPublicContent } = require('../services/publicContentDefaults.services');
 const { leadSubmitValidation } = require('../validations/lead.validations');
 // const { preparePublishHtml } = require('../helpers/landingPage.helper');
 const Message = require('../helpers/constant.message');
@@ -276,8 +277,9 @@ const PublicController = {
 
   getBlogPosts: async (req, res) => {
     try {
-      const page = parseInt(req.query.page, 10) || 1;
-      const limit = parseInt(req.query.limit, 10) || 10;
+      await ensureDefaultPublicContent();
+      const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+      const limit = Math.min(30, Math.max(1, parseInt(req.query.limit, 10) || 10));
       const filter = { status: 'published' };
       const data = await BlogPost.find(filter)
         .sort({ publishedAt: -1 })
@@ -294,6 +296,7 @@ const PublicController = {
 
   getBlogPost: async (req, res) => {
     try {
+      await ensureDefaultPublicContent();
       const post = await BlogPost.findOne({ slug: req.params.slug, status: 'published' })
         .populate('categoryId', 'name slug')
         .populate('authorId', 'name');
