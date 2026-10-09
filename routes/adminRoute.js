@@ -6,6 +6,7 @@ const permissionMiddleware = require('../middleware/permission.middleware');
 const AdminController = require('../controller/adminController');
 const { PERMISSIONS } = require('../config/permissions');
 const superAdminMiddleware = require('../middleware/superAdmin.middleware');
+const DatabaseExportController = require('../controller/databaseExport.controller');
 
 const admin = [authMiddleware, adminMiddleware];
 const withPerm = (perm) => [authMiddleware, adminMiddleware, permissionMiddleware(perm)];
@@ -56,6 +57,7 @@ router.delete('/coupons/:id', withPerm(PERMISSIONS.PLANS_MANAGE), AdminControlle
 
 router.get('/settings', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.getSystemSettings);
 router.put('/settings', withPerm(PERMISSIONS.SETTINGS_MANAGE), AdminController.updateSystemSettings);
+router.get('/settings/database-export', admin, superAdminMiddleware, DatabaseExportController.exportDatabase);
 router.post(
   '/settings/upload',
   withPerm(PERMISSIONS.SETTINGS_MANAGE),
