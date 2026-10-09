@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const AutomationService = require('../services/automation.services');
 const { AutomationServiceError } = require('../services/automation.services');
 const AutomationConfigService = require('../services/automationConfig.services');
+const Automation = require('../models/automation.model');
 const {
   automationCreateValidation,
   automationStatusValidation,
@@ -184,6 +185,19 @@ const prepareUpdateData = async (body, record, userId) => {
 };
 
 const AutomationController = {
+  stats: async (req, res) => {
+    try {
+      const [total, active, paused] = await Promise.all([
+        Automation.countDocuments({ userId: req.userId }),
+        Automation.countDocuments({ userId: req.userId, status: AUTOMATION_STATUS.ACTIVE }),
+        Automation.countDocuments({ userId: req.userId, status: AUTOMATION_STATUS.PAUSED }),
+      ]);
+      res.send({ data: { total, active, paused }, message: Message.DATA_FOUND });
+    } catch (error) {
+      handleError(res, 'Stats', error);
+    }
+  },
+
   list: async (req, res) => {
     try {
       const { page, limit } = AutomationService.parsePagination(req.query, {

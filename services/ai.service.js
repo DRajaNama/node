@@ -1,5 +1,6 @@
 const OpenAI = require('openai');
 const cheerio = require('cheerio');
+const AIIntegrationService = require('./aiIntegration.service');
 require('dotenv').config();
 
 const MAX_SOURCE_CHARS = 30000;
@@ -48,12 +49,24 @@ const AIService = {
   async generateTemplate(input) {
     const assetType = String(input.assetType || '').toLowerCase();
     if (!ALLOWED_TYPES.has(assetType)) throw new Error('Asset type must be email, landing, or popup.');
-    console.log('process',process.env.OPENAI_API_KEY)
-    if (!process.env.OPENAI_API_KEY) throw new Error('AI generation is not configured. Set OPENAI_API_KEY on the server.');
+    const apiKey = await AIIntegrationService.getApiKey(input.userId);
     const websiteUrl = normaliseUrl(input.websiteUrl);
     const website = await getWebsiteContext(websiteUrl);
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const response = await openai.responses.create({ model: process.env.OPENAI_TEMPLATE_MODEL || 'gpt-5.4', input: buildPrompt({ ...input, websiteUrl, website }), max_output_tokens: 8000, store: false });
+    const openai = new OpenAI({ apiKey });
+    let response;
+    try {
+      response = await openai.responses.create({ model: process.env.OPENAI_TEMPLATE_MODEL || 'gpt-5.4', input: buildPrompt({ ...input, websiteUrl, website }), max_output_tokens: 8000, store: false });
+    } catch (error) {
+      const status = error?.status === 401 || error?.status === 403 ? 422 : error?.status === 429 ? 429 : 503;
+      const message = status === 422
+        ? 'OpenAI rejected your API key. Update it in Integrations → ChatGPT/OpenAI.'
+        : status === 429
+          ? 'OpenAI rate limit reached. Please check your OpenAI usage and try again shortly.'
+          : 'Unable to generate content with OpenAI right now. Please try again later.';
+      const safeError = new Error(message);
+      safeError.status = status;
+      throw safeError;
+    }
     return { html: cleanHtml(response.output_text, assetType), sourceUrl: website.url, title: website.title };
   },
 };

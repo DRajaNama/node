@@ -91,9 +91,6 @@ router.delete('/notifications/:id', withPerm(PERMISSIONS.SETTINGS_MANAGE), Admin
 
 router.get('/logs', withPerm(PERMISSIONS.LOGS_VIEW), AdminController.listAuditLogs);
 router.get('/logs/stats', withPerm(PERMISSIONS.LOGS_VIEW), AdminController.getLogStats);
-router.get('/support', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.listSupportTickets);
-router.get('/support/stats', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.getSupportStats);
-router.put('/support/:id', withPerm(PERMISSIONS.SETTINGS_MANAGE), AdminController.updateSupportTicket);
 router.get('/smtp/providers', withPerm(PERMISSIONS.SETTINGS_VIEW), AdminController.getSmtpProviders);
 router.get('/email-verification', withPerm(PERMISSIONS.ANALYTICS_VIEW), AdminController.getEmailVerificationStats);
 router.get('/queue', withPerm(PERMISSIONS.ANALYTICS_VIEW), AdminController.getQueueStats);

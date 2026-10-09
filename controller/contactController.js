@@ -8,8 +8,36 @@ const Message = require('../helpers/constant.message');
 const logger = require('../helpers/logging');
 const { ObjectId } = require('mongodb');
 const fs = require('fs');
+const IntegrationService = require('../services/integration.services');
+const Settings = require('../models/settings.model');
+const sendEmail = require('../helpers/email.provider');
 
 const ContactController = {
+    sendEmail: async (req, res) => {
+        try {
+            const ids = Array.isArray(req.body.contactIds) ? req.body.contactIds : [req.body.contactId];
+            const subject = String(req.body.subject || '').trim();
+            const body = String(req.body.body || '').trim();
+            if (!ids.length || ids.some((id) => !id) || !subject || !body) {
+                return res.status(400).send({ data: null, message: 'Choose contacts and enter a subject and message.' });
+            }
+            const contacts = await ContactService.findByQuery([{ $match: { _id: { $in: ids.map((id) => new ObjectId(id)) }, userId: new ObjectId(req.userId), isUnsubscribed: { $ne: true } } }]);
+            const recipients = [...new Set((contacts || []).map((contact) => String(contact.email || '').trim()).filter(Boolean))];
+            if (!recipients.length) return res.status(400).send({ data: null, message: 'No subscribed contacts with email addresses were found.' });
+            const integration = await IntegrationService.getActiveEmail(req.userId);
+            if (!integration || integration.provider !== 'smtp') return res.status(400).send({ data: null, message: 'Connect an active SMTP integration before sending email.' });
+            await EntitlementService.checkEmailSendQuota(req.userId, recipients.length);
+            const settings = await Settings.findOne({ user: req.userId }).lean();
+            const escapeHtml = (value) => value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+            await sendEmail({ email: recipients, subject, fromName: settings?.email?.senderName || process.env.FROM_NAME || 'MailFlow Pro', fromEmail: settings?.email?.senderEmail || process.env.FROM_EMAIL || integration.config.username, html: escapeHtml(body).replace(/\r?\n/g, '<br>') }, integration.config);
+            await EntitlementService.recordEmailSends(req.userId, recipients.length);
+            return res.send({ data: { sent: recipients.length }, message: 'Email sent.' });
+        } catch (error) {
+            if (error instanceof QuotaExceededError || error?.name === 'QuotaExceededError') return handleQuotaError(res, error);
+            logger.error('Contact email send failed', error);
+            return res.status(500).send({ data: null, message: error?.message || 'Unable to send email.' });
+        }
+    },
     create: async (req, res) => {
         logger.info(Message.LOG_START+' - '+Message.CONTACT_CONTROLLER+Message.CREATE_ATTEMPT,req.body);
         try {

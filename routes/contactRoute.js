@@ -34,6 +34,8 @@ router.get('/contacts', authMiddleware, (req, res, next) => {
   ContactController.getAll(req, res, next);
 });
 
+router.post('/contacts/send-email', authMiddleware, validatePayload, ContactController.sendEmail);
+
 router.post('/contact/import',authMiddleware,upload.single('file'),(req,res,next)=>{
   logger.info(Message.LOG_START+' '+Message.UPLOAD_FILE);
   ContactController.importContact(req,res,next);

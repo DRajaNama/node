@@ -23,6 +23,7 @@ router.use(require("./formPopupRoute"));
 router.use(require("./leadRoute"));
 router.use(require("./automationRoute"));
 router.use(require("./userNotification.route"));
+router.use(require("./supportRoute"));
 router.use(require("./predefinedTemplateRoute"));
 router.use("/admin", require("./adminRoute"));
 router.use(require("./subscriptionRoute"));

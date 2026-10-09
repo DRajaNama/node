@@ -12,6 +12,7 @@ const automationAccess = [authMiddleware, checkFeature(FEATURE_KEYS.MARKETING_AU
 const withPermission = (permission) => [...automationAccess, permissionMiddleware(permission)];
 
 router.get('/automations/options', withPermission(PERMISSIONS.AUTOMATIONS_VIEW), AutomationController.options);
+router.get('/automations/stats', withPermission(PERMISSIONS.AUTOMATIONS_VIEW), AutomationController.stats);
 router.get('/automations', withPermission(PERMISSIONS.AUTOMATIONS_VIEW), AutomationController.list);
 router.post(
   '/automations',

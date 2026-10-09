@@ -9,6 +9,7 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 uploads/templates
+private-support-uploads/
 # Build output
 dist/
 build/

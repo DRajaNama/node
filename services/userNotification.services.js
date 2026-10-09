@@ -1,8 +1,14 @@
 const UserNotification = require('../models/userNotification.model');
+const RealtimeService = require('./realtime.services');
 
 const UserNotificationService = {
   create(data) {
     return UserNotification.create(data);
+  },
+  async createAndEmit(data) {
+    const notification = await UserNotification.create(data);
+    RealtimeService.emitToUser(notification.userId, 'notification', notification.toObject());
+    return notification;
   },
   async list(userId, limit = 30) {
     const notifications = await UserNotification.find({ userId }).sort({ createdAt: -1 }).limit(limit).lean();
